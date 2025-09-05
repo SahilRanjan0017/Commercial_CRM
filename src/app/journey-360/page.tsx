@@ -150,13 +150,12 @@ export default function Journey360Page() {
               if(j.currentStage.task) {
                   counts[j.currentStage.task]++;
               }
-              if (j.quotedGmv && j.quotedGmv > 0) {
-                quotedGmv += j.quotedGmv;
-              }
-          } else {
-              if (j.finalGmv && j.finalGmv > 0) {
-                finalGmv += j.finalGmv;
-              }
+          }
+          if (j.quotedGmv && j.quotedGmv > 0) {
+              quotedGmv += j.quotedGmv;
+          }
+          if (j.isClosed && j.finalGmv && j.finalGmv > 0) {
+            finalGmv += j.finalGmv;
           }
       });
       const stageCounts = tasks.map(task => ({ stage: task, count: counts[task] }));
@@ -289,7 +288,7 @@ export default function Journey360Page() {
                     </Card>
                      <Card
                       className={cn(
-                        "p-4 flex flex-col items-center justify-center cursor-pointer hover:bg-muted",
+                        "p-4 flex flex-col items-center justify-center cursor-pointer hover  :bg-muted",
                         activeFilter === 'FinalGMV' && 'bg-muted ring-2 ring-primary'
                       )}
                       onClick={() => setActiveFilter('FinalGMV')}
