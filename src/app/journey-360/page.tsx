@@ -436,40 +436,6 @@ export default function Journey360Page() {
                 
                 <Card>
                     <CardHeader>
-                        <CardTitle>Task GMV History</CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                        <Table>
-                            <TableHeader>
-                                <TableRow>
-                                    <TableHead>Task</TableHead>
-                                    <TableHead>GMV</TableHead>
-                                    <TableHead>Date</TableHead>
-                                </TableRow>
-                            </TableHeader>
-                            <TableBody>
-                                {taskGmvHistory.length > 0 ? (
-                                    taskGmvHistory.map((item, index) => (
-                                        <TableRow key={index}>
-                                            <TableCell className="font-medium">{item.task === 'Final' ? 'Final GMV' : `${item.task} (Expected GMV)`}</TableCell>
-                                            <TableCell>{typeof item.gmv === 'number' ? item.gmv.toLocaleString('en-IN') : 'N/A'}</TableCell>
-                                            <TableCell>{item.date ? new Date(item.date).toLocaleDateString() : 'N/A'}</TableCell>
-                                        </TableRow>
-                                    ))
-                                ) : (
-                                    <TableRow>
-                                        <TableCell colSpan={3} className="h-24 text-center text-muted-foreground">
-                                            No GMV history available.
-                                        </TableCell>
-                                    </TableRow>
-                                )}
-                            </TableBody>
-                        </Table>
-                    </CardContent>
-                </Card>
-
-                <Card>
-                    <CardHeader>
                         <CardTitle>Uploaded Documents</CardTitle>
                         <CardDescription>All files uploaded during this journey.</CardDescription>
                     </CardHeader>
