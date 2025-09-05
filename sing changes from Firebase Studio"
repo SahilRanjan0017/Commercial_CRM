@@ -1,0 +1,100 @@
+* [33mf75245c[m[33m ([m[1;36mHEAD[m[33m -> [m[1;32mmain[m[33m)[m get me back version of the json which working properly of the 4 sep
+* [33m7fa8823[m "I restored my Firebase Hosting project to an earlier version, but my we
+[31m|[m * [33m0e4891b[m[33m ([m[1;31morigin/main[m[33m)[m Final
+[31m|[m * [33ma85b228[m The app isn't starting. Please investigate what could be wrong based on
+[31m|[m * [33mad0de22[m Add same password of the Journey 360 here which open with 8804 code (_fo
+[31m|[m * [33m4d2594f[m why here the gmv is not tracked yet need to fethc all the gmv expected s
+[31m|[m * [33m08d7255[m <!DOCTYPE html> <html lang="en"> <head>     <meta charset="UTF-8">     <
+[31m|[m * [33meb9bff5[m Final GMV is the gmv which we tag in the closure task last one  (_for el
+[31m|[m * [33m60a0700[m Add this logic in the <!DOCTYPE html> <html lang="en"> <head>     <meta
+[31m|[m * [33m9e3e06e[m give me the new change where we remove gmv only expected gmv is there na
+[31m|[m * [33maf0cf40[m Try fixing this error: `Runtime Error: Error: date is not defined. Error
+[31m|[m * [33md7f12df[m Remove Customer Budget only Expected GMV in all the Task  (_for element
+[31m|[m * [33m2cbd49d[m This final GMV is in the closure is the final so its showing on the Dash
+[31m|[m * [33m0037c66[m Need to show each gmv i saw its showing in the gmv table but here show N
+[31m|[m * [33m4021411[m Here im unbale to find the recce gmv , tddm gmv need to showing the gmv
+[31m|[m * [33mc1346c4[m Try fixing this error: `Console Error: Error: Failed to send TDDM webhoo
+[31m|[m * [33m9767333[m Need to fix this error have to add the file in the storage  (_for elemen
+[31m|[m * [33mefb3d16[m Back button here and when we click its goes back option which we saved a
+[31m|[m * [33mc5530d3[m Try fixing this error: `Runtime Error: Error: areWillingleassToManage is
+[31m|[m * [33m37baea3[m Divide this into two Button one is start over and another is the back  (
+[31m|[m * [33m2b2ce68[m i want to lock this sheet like when any one click on this they show one
+[31m|[m * [33mf6512f8[m Initial GMV  N/A then not to be showing here when we click on this card
+[31m|[m * [33m2331a8b[m Add click here when we click on this the crn which fall in this total ha
+[31m|[m * [33m370768e[m Give me only alter the data of the which i use to update the col not ful
+[31m|[m * [33m40527e8[m now give the sql query which i have to change in the supabase
+[31m|[m * [33m341c463[m why this is not showing to each of the crn Journey details need to be sa
+[31m|[m * [33m475100a[m Add one Expected GMV only in the sub task - Recce Form Submission and Sa
+[31m|[m[31m/[m  
+* [33md12c3a2[m Where is the final gmv in this only initial gmv showing so need to show
+* [33m83b33bc[m not working have to add in the journey 360 crn check
+* [33m2fcfc4c[m add one side slider for this page its cut the journey which in the last
+* [33m8d68137[m Try fixing this error: `Runtime Error: Error: Cannot read properties of
+* [33m7e0d64f[m Now give me the change query of the sql which i need to change in the su
+* [33me8d6d45[m Now give me the all sql of the each table
+* [33m8ee3e94[m So do like this if any one fill the form of the recce of any Task the GM
+* [33m210cda4[m Here add 2 more Box 1 name is Quoted GMV, Final GMV . where Final GMV co
+* [33m912314b[m Try fixing this error: `Console Error: Error: Could not fetch journeys f
+* [33m6c0a0d6[m Add one GMV field number input which is important to enter the value and
+* [33m8f48ab9[m Add one new field  GMV after Negotiation Number field important to fill
+* [33m5f40499[m Make the following changes:
+* [33mb26180d[m I see this error with the app, reported by NextJS, please fix it. The er
+* [33mcea1060[m Make the following changes:
+* [33m5f71027[m Make the following changes:
+* [33me3cb527[m Update the Journey 360 CRN click behavior so that instead of opening the
+* [33m4c4f995[m Error: Failed to load chunk /_next/static/chunks/node_modules_eff76e4b._
+* [33m0a5dee3[m Make the following changes:
+* [33m475eeb9[m The customer information in the Journey 360 have me in the dilaog box li
+* [33m99dc686[m I see this error with the app, reported by NextJS, please fix it. The er
+* [33m5ae3156[m when we click on the crn in the journey 360 then the box which open its
+* [33mafce220[m Journey Details for any Crn in the Journey 360 i want to page view show
+* [33m5443dcc[m good file uploading is working properly but need to change only one thin
+* [33ma290f3e[m Make the following changes:
+* [33mef8d42e[m Buckets Write policies for each bucket to control access to the bucket a
+* [33m736a6d4[m give proper margin and padding bro please
+* [33m07cc402[m In main homepage add in bottom right Powered By SSD While hovering on SS
+* [33mf9056c2[m DROP POLICY IF EXISTS "Allow public uploads" ON storage.objects;
+* [33m7aca4c2[m use different colors bro for each stage
+* [33m14e43f0[m chnage the chart of 'Customer Journey Funnel' to similar to attached ima
+* [33m4ad8a55[m create table public.closure_data (   id bigserial not null,   crn text n
+* [33mbb77fbf[m Make the following changes:
+* [33m57d6da7[m Make the following changes:
+* [33mcacd5e9[m Make the following changes:
+* [33m34a347b[m Add one more Button in the nav bar which is the name of Range Calculator
+* [33medc4a31[m Policy name A descriptive name for your policy
+* [33mac8fcef[m Kindly help me out how to set the storage bucket of the supabase where i
+* [33m971713d[m Make the following changes:
+* [33m2956bba[m Make the following changes:
+* [33mc444d90[m Its done now make sure all things have save in the supabase this storage
+* [33md860bee[m Make the following changes:
+* [33m4df9a7d[m Error: Supabase insert failed for recce_data.     at insertStageEvent (r
+* [33m803d401[m Make the following changes:
+* [33mfe7696e[m 🔹 Image Upload Component (React / Firebase Studio) import { useState }
+* [33mf0fc71c[m I see this error with the app, reported by NextJS, please fix it. The er
+* [33m9ffebd9[m Make the following changes:
+* [33ma6b5f8f[m commercial-files is the storage name of the supabase need to route all t
+* [33m6698fb7[m ✅ Corrected Upload Function async function uploadFile(file: File, crn: s
+* [33m57cd93a[m I see this error with the app, reported by NextJS, please fix it. The er
+* [33m46e4674[m FIX THIS WHEN ANY ONE UPLOAD THEN ITS GOES TO OUR SUPABASE STORAGE WITH
+* [33mcd7d34a[m Now i told you the flow when we add the crn here new all option which we
+* [33me1633a1[m check once supabse is joined properly
+* [33m8c4665f[m Remove google sheet make our the get journey and things in the supabase
+* [33m3299303[m I see this error with the app, reported by NextJS, please fix it. The er
+* [33mfa8137f[m Connect the supabase bucket for the saving my file which i upload whose
+* [33m8c9477a[m Make the following changes:
+* [33mb0d70cb[m I see this error with the app, reported by NextJS, please fix it. The er
+* [33mb5be745[m Check in supabase im unbale to get the raw data
+* [33m5d86941[m I see this error with the app, reported by NextJS, please fix it. The er
+* [33m1394f90[m give me all the sql table which i use in the supabase for save this all
+* [33m0736a0d[m Got it! You want to design a Supabase database schema that can handle mu
+* [33m953d5e1[m How to fix 1. Provide a default value
+* [33m3c0d433[m 🔹 Correct usage 1. Unwrap with use import { use } from 'react';
+* [33madf34a4[m Make the following changes:
+* [33m629894a[m I see this error with the app, reported by NextJS, please fix it. The er
+* [33m4bd121a[m I see this error with the app, reported by NextJS, please fix it. The er
+* [33m4365ea8[m 🔹 How to fix
+* [33m1eb2c5a[m I see this error with the app, reported by NextJS, please fix it. The er
+* [33m48bb443[m I see this error with the app, reported by NextJS, please fix it. The er
+* [33m68867de[m Make the following changes:
+* [33m4c06e3b[m I see this error with the app, reported by NextJS, please fix it. The er
+* [33m19e84c5[m I see thi

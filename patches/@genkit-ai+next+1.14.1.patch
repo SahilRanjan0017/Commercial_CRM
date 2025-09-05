@@ -1,0 +1,40 @@
+diff --git a/node_modules/@genkit-ai/next/package.json b/node_modules/@genkit-ai/next/package.json
+index 3223068..5e14342 100644
+--- a/node_modules/@genkit-ai/next/package.json
++++ b/node_modules/@genkit-ai/next/package.json
+@@ -10,7 +10,6 @@
+     "build": "genkit-internal-build"
+   },
+   "peerDependencies": {
+-    "@genkit-ai/googleai": "workspace:^",
+     "genkit": "workspace:^",
+     "next": "^14.0.0",
+     "react": "^18.2.0",
+diff --git a/node_modules/@genkit-ai/next/plugin.js b/node_modules/@genkit-ai/next/plugin.js
+index 995ad9e..81373cc 100644
+--- a/node_modules/@genkit-ai/next/plugin.js
++++ b/node_modules/@genkit-ai/next/plugin.js
+@@ -32,7 +32,6 @@ const googleAIPlugin = genkit_1.genkitPlugin('googleai', async () => {
+         // TODO: Add other plugins here.
+     ];
+     // TODO: This is not great. We should probably have a better way to do this.
+-    const { googleAI } = await Promise.resolve().then(() => __importStar(require('@genkit-ai/googleai')));
+     const gcpPlugin = (0, google_ai_1.googleAI)();
+     if (gcpPlugin.name !== 'google-ai') {
+         throw new Error(`Expected google-ai plugin, got ${gcpPlugin.name}`);
+diff --git a/node_modules/@genkit-ai/next/runflow.js b/node_modules/@genkit-ai/next/runflow.js
+index 6a8276f..6c97a22 100644
+--- a/node_modules/@genkit-ai/next/runflow.js
++++ b/node_modules/@genkit-ai/next/runflow.js
+@@ -17,11 +17,6 @@
+ Object.defineProperty(exports, "__esModule", { value: true });
+ exports.runFlow = void 0;
+ const genkit_1 = require("genkit");
+-const google_ai_1 = require("@genkit-ai/googleai/google-ai");
+-const node_1 = require("@opentelemetry/context-async-hooks/node");
+-// Force the google-ai plugin to be loaded.
+- (0, genkit_1.loadPlugin)('google-ai', google_ai_1.googleAI);
+-(0, genkit_1.setContextManager)(new node_1.AsyncHooksContextManager());
+ /**
+  * Runs a Genkit flow on the server.
+  */
