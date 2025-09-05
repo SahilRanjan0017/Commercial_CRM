@@ -2,7 +2,6 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { getAllJourneys } from '@/services/supabase';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
@@ -50,7 +49,9 @@ export default function Journey360Page() {
   useEffect(() => {
     async function loadData() {
       try {
-        const data = await getAllJourneys();
+        const res = await fetch('/api/journeys');
+        if (!res.ok) throw new Error("Failed to load journeys");
+        const data: CustomerJourney[] = await res.json();
         data.sort((a, b) => a.crn.localeCompare(b.crn));
         setJourneys(data);
       } catch (error) {
@@ -448,8 +449,8 @@ export default function Journey360Page() {
                             </TableHeader>
                             <TableBody>
                                 {taskGmvHistory.length > 0 ? (
-                                    taskGmvHistory.map((item) => (
-                                        <TableRow key={item.task}>
+                                    taskGmvHistory.map((item, index) => (
+                                        <TableRow key={index}>
                                             <TableCell className="font-medium">{item.task === 'Final' ? 'Final GMV' : `${item.task} (Expected GMV)`}</TableCell>
                                             <TableCell>{typeof item.gmv === 'number' ? item.gmv.toLocaleString('en-IN') : 'N/A'}</TableCell>
                                             <TableCell>{item.date ? new Date(item.date).toLocaleDateString() : 'N/A'}</TableCell>

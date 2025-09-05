@@ -1,6 +1,4 @@
 
-'use server';
-
 import { supabase } from '@/lib/supabase';
 import type { CustomerJourney, StageEvent, Task, SubTask, NewJourneyDetails, RecceFormSubmissionData, PostRecceFollowUpData, TDDMInitialMeetingData, TDDMFollowUpData, NegotiationData, SiteVisitData, AgreementDiscussionData, AdvanceMeetingFollowUpData, ClosureMeetingData, PostClosureFollowUpData } from '@/types';
 import { stageMap, tasks } from '@/types';
@@ -327,7 +325,7 @@ export async function getJourney(crn: string, newJourneyDetails: NewJourneyDetai
         .from('journey_data')
         .select(`
             *,
-            raw_data:raw_data(city, customer_name, customer_email, customer_phone, gmv)
+            raw_data:raw_data!inner(city, customer_name, customer_email, customer_phone, gmv)
         `)
         .eq('crn', crn)
         .single();

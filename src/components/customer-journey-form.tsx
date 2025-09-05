@@ -11,12 +11,9 @@ import { StageForms } from '@/components/stage-forms';
 import { TimelineView } from '@/components/timeline-view';
 import { stageMap, tasks } from '@/types';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
-import { getJourney, getStageForCrn, updateJourney } from '@/services/supabase';
-import { sendTDDMWebhook } from '@/services/webhook';
 import { useToast } from '@/hooks/use-toast';
 import { ArrowLeft, Loader2, Lock } from 'lucide-react';
-import { Badge } from './ui/badge';
-import {areCities} from '@/lib/are-logic';
+import { areCities } from '@/lib/are-logic';
 
 export function CustomerJourneyForm() {
   const [journey, setJourney] = useState<CustomerJourney | null>(null);
@@ -41,8 +38,14 @@ export function CustomerJourneyForm() {
   const handleCrnBlur = () => {
     if (crnInput.trim()) {
       startStageCheck(async () => {
-        const stage = await getStageForCrn(crnInput.trim());
-        setCurrentStagePreview(stage);
+        try {
+            const res = await fetch(`/api/journeys/${crnInput.trim()}`);
+            if (!res.ok) throw new Error('Failed to fetch stage');
+            const stage = await res.json();
+            setCurrentStagePreview(stage);
+        } catch (error) {
+            setCurrentStagePreview(null);
+        }
       })
     }
   }
@@ -74,20 +77,25 @@ export function CustomerJourneyForm() {
   const handleCrnSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (crnInput.trim()) {
-      // For new journeys, ensure all fields are filled.
       if (!currentStagePreview && !isCheckingStage && !validateNewJourneyFields()) {
           return;
       }
 
       setLoading(true);
       try {
-        const loadedJourney = await getJourney(crnInput.trim(), {
-            city: city,
-            customerName: customerName,
-            customerEmail: customerEmail,
-            customerPhone: customerPhone,
-            gmv: parseFloat(gmv)
+        const res = await fetch(`/api/journeys/${crnInput.trim()}`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                city: city,
+                customerName: customerName,
+                customerEmail: customerEmail,
+                customerPhone: customerPhone,
+                gmv: parseFloat(gmv)
+            })
         });
+        if (!res.ok) throw new Error('Could not load journey');
+        const loadedJourney = await res.json();
         setJourney(loadedJourney);
       } catch (error) {
         console.error(error);
@@ -132,16 +140,13 @@ export function CustomerJourneyForm() {
     let isClosing = false;
 
     if (currentSubTaskIndex < subTaskArray.length - 1) {
-        // Move to next subtask within the same task
         nextStage = { task: currentTask, subTask: subTaskArray[currentSubTaskIndex + 1], city: journey.city };
     } else {
-        // Move to the first subtask of the next task
         const currentTaskIndex = tasks.indexOf(currentTask);
         if (currentTaskIndex < tasks.length - 1) {
             const nextTask = tasks[currentTaskIndex + 1];
             nextStage = { task: nextTask, subTask: stageMap[nextTask][0], city: journey.city };
         } else {
-            // End of journey, stay on the last stage
             nextStage = journey.currentStage;
             isClosing = true;
         }
@@ -155,16 +160,27 @@ export function CustomerJourneyForm() {
     };
 
     try {
-      await updateJourney(updatedJourney);
+      const updateRes = await fetch(`/api/journeys/${journey.crn}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(updatedJourney)
+      });
+
+      if (!updateRes.ok) throw new Error('Failed to update journey');
+
 
       if (stageData.stage.subTask === 'TDDM Initial Meeting') {
           const tddmData = stageData as TDDMInitialMeetingData;
           try {
-            await sendTDDMWebhook({
-                ...tddmData,
-                customerName: journey.customerName,
-                customerEmail: journey.customerEmail,
-                customerPhone: journey.customerPhone
+            await fetch('/api/webhooks/tddm', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    ...tddmData,
+                    customerName: journey.customerName,
+                    customerEmail: journey.customerEmail,
+                    customerPhone: journey.customerPhone
+                })
             });
             toast({
               title: "TDDM Webhook Sent",
