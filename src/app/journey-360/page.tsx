@@ -218,12 +218,12 @@ export default function Journey360Page() {
             <TooltipProvider>
               <Tooltip>
                 <TooltipTrigger asChild>
-                  <PasswordDialog href="/range-calculator">
+                  <Link href="/range-calculator">
                     <Button variant="outline">
                       <Calculator className="mr-2 h-4 w-4" />
                       Range Calculator
                     </Button>
-                  </PasswordDialog>
+                  </Link>
                 </TooltipTrigger>
                 <TooltipContent>
                   <p>Range Calculator</p>
@@ -245,12 +245,12 @@ export default function Journey360Page() {
                 </TooltipContent>
               </Tooltip>
             </TooltipProvider>
-            <PasswordDialog href="/journey-360">
+            <Link href="/journey-360">
               <Button variant="outline">
                 <AreaChart className="mr-2 h-4 w-4" />
                 Journey 360°
               </Button>
-            </PasswordDialog>
+            </Link>
             <Link href="/">
               <Button variant="outline"><HomeIcon className="mr-2 h-4 w-4" />Home</Button>
             </Link>
@@ -382,7 +382,7 @@ export default function Journey360Page() {
             <ScrollArea className="flex-grow">
             <div className="p-6 space-y-8">
                 <Card>
-                    <CardContent className="pt-6 grid grid-cols-1 md:grid-cols-3 gap-6">
+                    <CardContent className="pt-6 grid grid-cols-1 md:grid-cols-2 gap-6">
                         <div className="flex items-center gap-6">
                             <Avatar className="w-24 h-24 text-3xl">
                                 <AvatarFallback>{selectedJourney.customerName?.[0].toUpperCase()}</AvatarFallback>
@@ -392,8 +392,8 @@ export default function Journey360Page() {
                                 <p className="text-muted-foreground">{selectedJourney.crn}</p>
                             </div>
                         </div>
-                        <div className="md:col-span-2 grid grid-cols-1 sm:grid-cols-2 gap-y-4 gap-x-8 text-sm items-center">
-                            <div className="flex items-start gap-3">
+                        <div className="md:col-span-1 grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-y-4 gap-x-6 text-sm items-center">
+                            <div className="flex items-start gap-3 col-span-1 sm:col-span-2 md:col-span-3">
                                 <Mail className="w-4 h-4 text-muted-foreground mt-1" />
                                 <div>
                                     <p className="font-medium">Email</p>
