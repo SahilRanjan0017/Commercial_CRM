@@ -288,7 +288,7 @@ export default function Journey360Page() {
                     </Card>
                      <Card
                       className={cn(
-                        "p-4 flex flex-col items-center justify-center cursor-pointer hover  :bg-muted",
+                        "p-4 flex flex-col items-center justify-center cursor-pointer hover:bg-muted",
                         activeFilter === 'FinalGMV' && 'bg-muted ring-2 ring-primary'
                       )}
                       onClick={() => setActiveFilter('FinalGMV')}
@@ -416,8 +416,8 @@ export default function Journey360Page() {
                             <div className="flex items-start gap-3">
                                 <IndianRupee className="w-4 h-4 text-muted-foreground mt-1" />
                                 <div>
-                                    <p className="font-medium">Initial GMV</p>
-                                    <p className="text-muted-foreground">{selectedJourney.gmv ? selectedJourney.gmv.toLocaleString('en-IN') : 'N/A'}</p>
+                                    <p className="font-medium">Quoted GMV</p>
+                                    <p className="text-muted-foreground">{selectedJourney.quotedGmv ? selectedJourney.quotedGmv.toLocaleString('en-IN') : 'N/A'}</p>
                                 </div>
                             </div>
                             {selectedJourney.isClosed && selectedJourney.finalGmv && (

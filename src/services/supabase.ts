@@ -115,12 +115,14 @@ async function insertStageEvent(event: StageEvent) {
               ...baseData, 
               confirmation_method: d.confirmationMethod,
               final_gmv: d.finalGmv,
+              files: d.files,
             };
       } else if (subTask === 'Post-Closure Follow Up') {
           const d = event as PostClosureFollowUpData;
           dataToInsert = { 
               ...baseData, 
               agenda: d.agenda, 
+              files: d.files,
             };
       }
       break;
@@ -370,6 +372,7 @@ export async function getJourney(crn: string, newJourneyDetails: NewJourneyDetai
                 city: rawData?.city,
             },
             isClosed: journeyData.is_closed,
+            quotedGmv: journeyData.quoted_gmv,
             finalGmv: journeyData.final_gmv,
         };
     }
