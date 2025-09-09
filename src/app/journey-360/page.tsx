@@ -205,13 +205,13 @@ export default function Journey360Page() {
       const stageCounts = tasks.map(task => ({ stage: task, count: counts[task] }));
       
       const today = new Date();
-      const monthProgress = monthFilter.startsWith('M-') ? 100 : (getDate(today) / getDaysInMonth(today)) * 100;
+      const monthProgressRatio = monthFilter.startsWith('M-') ? 1 : (getDate(today) / getDaysInMonth(today));
 
 
-      return { stageCounts, quotedGmv, finalGmv, firstMeetingCount, monthProgress: monthProgress.toFixed(0) };
+      return { stageCounts, quotedGmv, finalGmv, firstMeetingCount, monthProgressRatio };
   }
   
-  const { stageCounts, quotedGmv, finalGmv, firstMeetingCount, monthProgress } = getDashboardData();
+  const { stageCounts, quotedGmv, finalGmv, firstMeetingCount, monthProgressRatio } = getDashboardData();
   const isImage = (fileName: string) => /\.(jpe?g|png|gif|webp)$/i.test(fileName);
   
   const getTaskGmvHistory = (history: StageEvent[]): TaskGmvHistoryItem[] => {
@@ -361,7 +361,7 @@ export default function Journey360Page() {
                             <div className="grid grid-cols-3 gap-4">
                                 <DashboardCard title="Target" value={stageTargets[item.stage]} />
                                 <DashboardCard title="Achieved" value={item.count} onClick={() => setActiveFilter(item.stage)} isActive={activeFilter === item.stage} />
-                                <DashboardCard title="Month Progress" value={`${monthProgress}%`} />
+                                <DashboardCard title="Prorated Target" value={(stageTargets[item.stage] * monthProgressRatio).toFixed(0)} />
                             </div>
                         </div>
                     ))}
@@ -535,5 +535,7 @@ export default function Journey360Page() {
     </Dialog>
   );
 }
+
+    
 
     
