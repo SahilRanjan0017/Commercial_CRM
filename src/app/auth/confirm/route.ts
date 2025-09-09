@@ -9,6 +9,7 @@ export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url)
   const token_hash = searchParams.get('token_hash')
   const type = searchParams.get('type') as EmailOtpType | null
+  const next = searchParams.get('next') ?? '/'
 
   if (token_hash && type) {
     const supabase = createClient()
@@ -18,11 +19,11 @@ export async function GET(request: NextRequest) {
       token_hash,
     })
     if (!error) {
-      // Redirect to the home page after successful verification
-      return NextResponse.redirect(new URL('/', request.url))
+      // redirect user to specified redirect URL or root of app
+      return NextResponse.redirect(new URL(next, request.url))
     }
   }
 
-  // Redirect to an error page if the token is invalid or missing
+  // redirect the user to an error page with some instructions
   return NextResponse.redirect(new URL('/error', request.url))
 }
