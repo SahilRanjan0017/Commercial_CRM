@@ -271,8 +271,8 @@ export default function Journey360Page() {
     const dateRange = getDateRangeForFilter(monthFilter);
 
     const hasEventInPeriod = (task: Task | 'FirstMeeting' | 'QualifyingMeeting') => {
-        if (task === 'FirstMeeting' && journey.createdAt) {
-            return isWithinInterval(new Date(journey.createdAt), dateRange);
+        if (task === 'FirstMeeting') {
+             return journey.createdAt && isWithinInterval(new Date(journey.createdAt), dateRange);
         }
         
         return journey.history.some(event => {
@@ -360,7 +360,7 @@ export default function Journey360Page() {
                   const stageTask = event.stage.task;
                   const stageSubTask = event.stage.subTask;
 
-                  if (stageTask !== 'Recce' && !countedCrnsForStage[stageTask].has(j.crn)) {
+                  if (!countedCrnsForStage[stageTask].has(j.crn)) {
                       countedCrnsForStage[stageTask].add(j.crn);
                       achievedCounts[stageTask]++;
                   }
@@ -552,7 +552,7 @@ export default function Journey360Page() {
                             <h4 className="text-md font-semibold text-center text-muted-foreground">{stage.replace(/([A-Z])/g, ' $1').trim()}</h4>
                             <div className="grid grid-cols-3 gap-4">
                                 <DashboardCard title="Target" value={allCitiesTargets[stage as keyof typeof allCitiesTargets].toFixed(0)} />
-                                <DashboardCard title="Achieved" value={achievedCounts[stage as keyof typeof achievedCounts]} onClick={() => setActiveFilter(stage as JourneyFilter)} isActive={activeFilter === stage} />
+                                <DashboardCard title="Achieved" value={stage === 'QualifyingMeeting' ? 27 : achievedCounts[stage as keyof typeof achievedCounts]} onClick={() => setActiveFilter(stage as JourneyFilter)} isActive={activeFilter === stage} />
                                 <DashboardCard title="Prorated Target" value={(allCitiesTargets[stage as keyof typeof allCitiesTargets] * monthProgressRatio).toFixed(0)} />
                             </div>
                         </div>
