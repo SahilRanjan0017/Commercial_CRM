@@ -297,7 +297,7 @@ export default function Journey360Page() {
 
     if (activeFilter === 'FinalGMV') {
         const hasFinalGmvInPeriod = journey.isClosed && typeof journey.finalGmv === 'number' && journey.finalGmv >= 1 &&
-            journey.history.some(e => e.stage.task === 'Closure' && isWithinInterval(new Date(e.timestamp), dateRange));
+            journey.history.some(e => e.stage.subTask === 'Closure Meeting (BA Collection)' && isWithinInterval(new Date(e.timestamp), dateRange));
         return crnFilterMatch && cityFilterMatch && hasFinalGmvInPeriod;
     }
 
@@ -372,9 +372,11 @@ export default function Journey360Page() {
                   
                   if ('expectedGmv' in event && event.expectedGmv && event.expectedGmv > 0) hasQuotedGmvInPeriod = true;
                   
-                  if (stageTask === 'Closure' && 'finalGmv' in event && event.finalGmv && event.finalGmv > 0) {
+                  if (stageSubTask === 'Closure Meeting (BA Collection)') {
                       const closureEvent = event as ClosureMeetingData;
-                      finalGmv += closureEvent.finalGmv;
+                      if (closureEvent.finalGmv && closureEvent.finalGmv > 0) {
+                        finalGmv += closureEvent.finalGmv;
+                      }
                   }
               }
           });
