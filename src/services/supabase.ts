@@ -154,7 +154,7 @@ export async function updateJourney(journey: CustomerJourney): Promise<void> {
       customer_email: journey.customerEmail,
       customer_phone: journey.customerPhone,
       gmv: journey.gmv,
-      timestamp: new Date().toISOString(),
+      timestamp: journey.createdAt || new Date().toISOString(),
     },
     { onConflict: 'crn' }
   );
@@ -202,17 +202,18 @@ export async function updateJourney(journey: CustomerJourney): Promise<void> {
 }
 
 export async function getAllJourneys(): Promise<CustomerJourney[]> {
-    // 1. Fetch all event data from all stage tables
-    const [recceHistory, tddmHistory, advanceMeetingHistory, closureHistory] = await Promise.all([
+    // 1. Fetch all event data from all stage tables AND all raw data
+    const [recceHistory, tddmHistory, advanceMeetingHistory, closureHistory, rawDataResponse] = await Promise.all([
         supabase.from('recce_data').select('*'),
         supabase.from('tddm_data').select('*'),
         supabase.from('advance_meeting').select('*'),
         supabase.from('closure_data').select('*'),
+        supabase.from('raw_data').select('*'),
     ]);
     
-    if (recceHistory.error || tddmHistory.error || advanceMeetingHistory.error || closureHistory.error) {
-        console.error("Error fetching history data:", recceHistory.error || tddmHistory.error || advanceMeetingHistory.error || closureHistory.error);
-        throw new Error("Could not fetch journey history from Supabase.");
+    if (recceHistory.error || tddmHistory.error || advanceMeetingHistory.error || closureHistory.error || rawDataResponse.error) {
+        console.error("Error fetching data:", recceHistory.error || tddmHistory.error || advanceMeetingHistory.error || closureHistory.error || rawDataResponse.error);
+        throw new Error("Could not fetch journey data from Supabase.");
     }
 
     const allHistoryEvents = [
@@ -222,68 +223,51 @@ export async function getAllJourneys(): Promise<CustomerJourney[]> {
         ...(closureHistory.data || []).map(e => ({ ...e, task: 'Closure' }))
     ];
     
-    // 2. Get a unique list of all CRNs from the history
-    const allCrns = [...new Set(allHistoryEvents.map(e => e.crn))];
+    // Get a unique list of all CRNs from history and raw data
+    const historyCrns = allHistoryEvents.map(e => e.crn);
+    const rawDataCrns = (rawDataResponse.data || []).map(r => r.crn);
+    const allCrns = [...new Set([...historyCrns, ...rawDataCrns])];
     
     if (allCrns.length === 0) {
         return [];
     }
 
-    // 3. Fetch journey_data and raw_data for all unique CRNs
+    // Fetch all journey_data for all unique CRNs
     const { data: journeysData, error: journeysError } = await supabase
         .from('journey_data')
-        .select(`
-            crn,
-            current_task,
-            current_subtask,
-            is_closed,
-            quoted_gmv,
-            final_gmv,
-            raw_data:raw_data!crn(city, customer_name, customer_email, customer_phone, gmv)
-        `)
+        .select(`*`)
         .in('crn', allCrns);
 
     if (journeysError) {
         console.error('Error fetching journeys:', journeysError);
         throw new Error('Could not fetch journeys from Supabase.');
     }
-    
-    const { data: rawDataForAll, error: rawDataError } = await supabase
-        .from('raw_data')
-        .select('*')
-        .in('crn', allCrns);
 
-    if(rawDataError) {
-        console.error('Error fetching raw data:', rawDataError);
-        throw new Error('Could not fetch raw data from Supabase.');
-    }
-
-    // 4. Create maps for easy lookup
+    // Create maps for easy lookup
     const historyByCrn = allHistoryEvents.reduce((acc, event) => {
         if (!acc[event.crn]) acc[event.crn] = [];
         acc[event.crn].push(event);
         return acc;
     }, {} as Record<string, any[]>);
 
-    const journeyDataByCrn = journeysData.reduce((acc, j) => {
+    const journeyDataByCrn = (journeysData || []).reduce((acc, j) => {
         acc[j.crn] = j;
         return acc;
     }, {} as Record<string, (typeof journeysData)[0]>);
     
-    const rawDataByCrn = rawDataForAll.reduce((acc, r) => {
+    const rawDataByCrn = (rawDataResponse.data || []).reduce((acc, r) => {
         acc[r.crn] = r;
         return acc;
-    }, {} as Record<string, (typeof rawDataForAll)[0]>);
+    }, {} as Record<string, (typeof rawDataResponse.data)[0]>);
 
 
-    // 5. Construct the final CustomerJourney array
+    // Construct the final CustomerJourney array
     return allCrns.map((crn): CustomerJourney | null => {
         const journeyInfo = journeyDataByCrn[crn];
         const rawInfo = rawDataByCrn[crn];
         const journeyHistoryRaw = historyByCrn[crn] || [];
         
-        // Every journey must have raw_info to be valid
-        if(!rawInfo) return null;
+        if(!rawInfo) return null; // Every journey must have raw_info to be valid
 
         journeyHistoryRaw.sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime());
 
@@ -327,14 +311,14 @@ export async function getAllJourneys(): Promise<CustomerJourney[]> {
                      const nextTask = tasks[currentTaskIndex + 1];
                      currentStage = { task: nextTask, subTask: stageMap[nextTask][0], city: rawInfo.city };
                  } else {
-                     // This is the last possible stage
                      currentStage = lastEvent.stage;
                      isClosed = true;
                  }
              }
         } else {
-            // Should not happen if CRN came from history, but as a fallback
-            return null;
+            // New journey with no history events yet
+            currentStage = { task: 'Recce', subTask: 'Recce Form Submission', city: rawInfo.city };
+            isClosed = false;
         }
 
         return {
@@ -349,8 +333,9 @@ export async function getAllJourneys(): Promise<CustomerJourney[]> {
             isClosed: isClosed,
             quotedGmv: journeyInfo?.quoted_gmv ?? rawInfo.gmv,
             finalGmv: journeyInfo?.final_gmv,
+            createdAt: rawInfo.timestamp,
         };
-    }).filter((j): j is CustomerJourney => j !== null); // Filter out any nulls
+    }).filter((j): j is CustomerJourney => j !== null);
 }
 
 
@@ -441,6 +426,7 @@ export async function getJourney(crn: string, newJourneyDetails: NewJourneyDetai
             isClosed: journeyData.is_closed,
             quotedGmv: journeyData.quoted_gmv,
             finalGmv: journeyData.final_gmv,
+            createdAt: journeyData.timestamp, // Assuming journey_data timestamp is creation time
         };
     }
 
@@ -465,11 +451,13 @@ export async function getJourney(crn: string, newJourneyDetails: NewJourneyDetai
             currentStage: { task: initialTask, subTask: initialSubTask, city: rawData.city },
             isClosed: false,
             history: [],
+            createdAt: rawData.timestamp
         };
     }
 
 
     // If not found anywhere, it's a completely new journey.
+    const newJourneyTimestamp = new Date().toISOString();
     const newStage = { task: tasks[0], subTask: stageMap[tasks[0]][0], city: newJourneyDetails.city };
     const newJourney: CustomerJourney = {
         crn,
@@ -481,6 +469,7 @@ export async function getJourney(crn: string, newJourneyDetails: NewJourneyDetai
         currentStage: newStage,
         history: [],
         isClosed: false,
+        createdAt: newJourneyTimestamp,
     };
 
     // Immediately save this new journey to Supabase

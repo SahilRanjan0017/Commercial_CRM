@@ -63,10 +63,10 @@ const FunnelAnalysis = ({ journeys, cityFilter, monthFilter }: { journeys: Custo
     const dateRange = getDateRangeForFilter(monthFilter);
     const filteredJourneys = journeys.filter(journey => {
         const cityFilterMatch = cityFilter === 'All' || journey.city === cityFilter;
-        // Check if any event in the history falls within the date range
-        const monthFilterMatch = journey.history.some(event => 
-            isWithinInterval(new Date(event.timestamp), dateRange)
-        );
+        // A journey matches if an event is in range OR if it has no events and its creation is in range.
+        const monthFilterMatch = journey.history.length > 0
+            ? journey.history.some(event => isWithinInterval(new Date(event.timestamp), dateRange))
+            : journey.createdAt ? isWithinInterval(new Date(journey.createdAt), dateRange) : false;
         return cityFilterMatch && monthFilterMatch;
     });
     
@@ -240,10 +240,10 @@ export default function Journey360Page() {
       const cityFilterMatch = cityFilter === 'All' || journey.city === cityFilter;
 
       const dateRange = getDateRangeForFilter(monthFilter);
-       // Check if any event in the history falls within the date range
-      const monthFilterMatch = journey.history.some(event => 
-          isWithinInterval(new Date(event.timestamp), dateRange)
-      );
+      // A journey matches if an event is in range OR if it has no events and its creation is in range.
+      const monthFilterMatch = journey.history.length > 0
+          ? journey.history.some(event => isWithinInterval(new Date(event.timestamp), dateRange))
+          : journey.createdAt ? isWithinInterval(new Date(journey.createdAt), dateRange) : false;
 
       let statusFilterMatch = true;
       if (activeFilter === 'All') {
@@ -293,7 +293,9 @@ export default function Journey360Page() {
       const journeysInScope = (cityFilter === 'All' ? journeys : journeys.filter(j => j.city === cityFilter));
       
       const journeysToCount = journeysInScope.filter(j => {
-            return j.history.some(e => isWithinInterval(new Date(e.timestamp), dateRange));
+          return j.history.length > 0
+              ? j.history.some(e => isWithinInterval(new Date(e.timestamp), dateRange))
+              : j.createdAt ? isWithinInterval(new Date(j.createdAt), dateRange) : false;
       });
       
       const counts = tasks.reduce((acc, task) => ({...acc, [task]: 0}), {} as Record<Task, number>);
@@ -652,5 +654,7 @@ export default function Journey360Page() {
     </Dialog>
   );
 }
+
+    
 
     

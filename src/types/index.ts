@@ -156,6 +156,7 @@ export interface CustomerJourney {
   isClosed: boolean;
   quotedGmv?: number;
   finalGmv?: number;
+  createdAt?: string;
 }
 
 export interface NewJourneyDetails {
@@ -165,3 +166,5 @@ export interface NewJourneyDetails {
     customerPhone: string;
     gmv: number;
 }
+
+    
