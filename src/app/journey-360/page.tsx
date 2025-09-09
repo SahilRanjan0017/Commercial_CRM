@@ -245,32 +245,25 @@ export default function Journey360Page() {
 
   const formatGmv = (value: number) => {
     if (value >= 1_00_00_000) {
-        return `${(value / 1_00_00_000).toFixed(2)} Cr`;
+        return `₹${(value / 1_00_00_000).toFixed(2)} Cr`;
     }
     if (value >= 1_00_000) {
-        return `${(value / 1_00_000).toFixed(2)} L`;
+        return `₹${(value / 1_00_000).toFixed(2)} L`;
     }
-    return value.toLocaleString('en-IN');
+    return `₹${value.toLocaleString('en-IN')}`;
   };
 
-  const DashboardCard = ({ title, value, icon: Icon, onClick, isActive }: { title: string; value: string | number; icon: React.ElementType, onClick?: () => void, isActive?: boolean }) => (
-    <Card
+  const DashboardCard = ({ title, value, onClick, isActive }: { title: string; value: string | number; onClick?: () => void, isActive?: boolean }) => (
+    <div
       className={cn(
-        "p-4 flex flex-col items-center justify-center cursor-pointer hover:bg-muted/50 transition-all duration-200",
+        "flex flex-col items-center justify-center p-4 h-32 rounded-2xl shadow-md bg-card cursor-pointer hover:bg-muted/80 transition-all duration-200",
         isActive && 'bg-muted ring-2 ring-primary'
       )}
       onClick={onClick}
     >
-      <div className="flex items-center gap-4 w-full">
-        <div className="p-3 bg-primary/10 rounded-lg">
-          <Icon className="w-6 h-6 text-primary" />
-        </div>
-        <div className="flex-1 text-right">
-          <p className="text-2xl font-bold">{value}</p>
-          <p className="text-sm text-muted-foreground">{title}</p>
-        </div>
-      </div>
-    </Card>
+        <span className="text-2xl font-bold">{value}</span>
+        <span className="text-sm text-muted-foreground text-center">{title}</span>
+    </div>
   );
 
 
@@ -356,19 +349,19 @@ export default function Journey360Page() {
                     </div>
                 </CardHeader>
                 <CardContent className="space-y-8">
-                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                         <DashboardCard title="Quoted GMV" value={formatGmv(quotedGmv)} icon={IndianRupee} onClick={() => setActiveFilter('QuotedGMV')} isActive={activeFilter === 'QuotedGMV'} />
-                         <DashboardCard title="Final GMV" value={formatGmv(finalGmv)} icon={IndianRupee} onClick={() => setActiveFilter('FinalGMV')} isActive={activeFilter === 'FinalGMV'} />
-                         <DashboardCard title="First Meetings" value={firstMeetingCount} icon={User} onClick={() => setActiveFilter('FirstMeeting')} isActive={activeFilter === 'FirstMeeting'} />
+                    <div className="grid grid-cols-3 gap-4">
+                         <DashboardCard title="Quoted GMV" value={formatGmv(quotedGmv)} onClick={() => setActiveFilter('QuotedGMV')} isActive={activeFilter === 'QuotedGMV'} />
+                         <DashboardCard title="Final GMV" value={formatGmv(finalGmv)} onClick={() => setActiveFilter('FinalGMV')} isActive={activeFilter === 'FinalGMV'} />
+                         <DashboardCard title="First Meetings" value={firstMeetingCount} onClick={() => setActiveFilter('FirstMeeting')} isActive={activeFilter === 'FirstMeeting'} />
                     </div>
 
                     {stageCounts.map(item => (
                         <div key={item.stage} className="space-y-3">
                             <h4 className="text-md font-semibold text-center text-muted-foreground">{item.stage}</h4>
                             <div className="grid grid-cols-3 gap-4">
-                                <DashboardCard title="Target" value={stageTargets[item.stage]} icon={Target} />
-                                <DashboardCard title="Achieved" value={item.count} icon={CheckCircle} onClick={() => setActiveFilter(item.stage)} isActive={activeFilter === item.stage} />
-                                <DashboardCard title="Month Progress" value={`${monthProgress}%`} icon={TrendingUp} />
+                                <DashboardCard title="Target" value={stageTargets[item.stage]} />
+                                <DashboardCard title="Achieved" value={item.count} onClick={() => setActiveFilter(item.stage)} isActive={activeFilter === item.stage} />
+                                <DashboardCard title="Month Progress" value={`${monthProgress}%`} />
                             </div>
                         </div>
                     ))}
