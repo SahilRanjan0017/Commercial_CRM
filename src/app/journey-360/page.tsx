@@ -59,6 +59,9 @@ const stageTargets: Record<Task, number> = {
     'Closure': 5,
 };
 
+const targetGmv = 5_00_00_000;
+const targetMeetings = 40;
+
 const FunnelAnalysis = ({ journeys, cityFilter, monthFilter }: { journeys: CustomerJourney[], cityFilter: string, monthFilter: string }) => {
     const getDateRangeForFilter = (filter: string): { start: Date; end: Date } => {
         const now = new Date();
@@ -481,10 +484,21 @@ export default function Journey360Page() {
                     </div>
                 </CardHeader>
                 <CardContent className="space-y-8">
-                    <div className="grid grid-cols-3 gap-4">
-                         <DashboardCard title="Quoted GMV" value={formatGmv(quotedGmv)} onClick={() => setActiveFilter('QuotedGMV')} isActive={activeFilter === 'QuotedGMV'} />
-                         <DashboardCard title="Final GMV" value={formatGmv(finalGmv)} onClick={() => setActiveFilter('FinalGMV')} isActive={activeFilter === 'FinalGMV'} />
-                         <DashboardCard title="First Meetings" value={firstMeetingCount} onClick={() => setActiveFilter('FirstMeeting')} isActive={activeFilter === 'FirstMeeting'} />
+                     <div className="space-y-3">
+                        <h4 className="text-md font-semibold text-center text-muted-foreground">GMV</h4>
+                        <div className="grid grid-cols-3 gap-4">
+                             <DashboardCard title="Target GMV" value={formatGmv(targetGmv)} />
+                             <DashboardCard title="Quoted GMV" value={formatGmv(quotedGmv)} onClick={() => setActiveFilter('QuotedGMV')} isActive={activeFilter === 'QuotedGMV'} />
+                             <DashboardCard title="Final GMV" value={formatGmv(finalGmv)} onClick={() => setActiveFilter('FinalGMV')} isActive={activeFilter === 'FinalGMV'} />
+                        </div>
+                    </div>
+                    <div className="space-y-3">
+                        <h4 className="text-md font-semibold text-center text-muted-foreground">Meetings</h4>
+                        <div className="grid grid-cols-3 gap-4">
+                            <DashboardCard title="Target Meetings" value={targetMeetings} />
+                            <DashboardCard title="Achieved Meetings" value={firstMeetingCount} onClick={() => setActiveFilter('FirstMeeting')} isActive={activeFilter === 'FirstMeeting'} />
+                            <DashboardCard title="Prorated Meetings" value={(targetMeetings * monthProgressRatio).toFixed(0)} />
+                        </div>
                     </div>
 
                     {stageCounts.map(item => (
