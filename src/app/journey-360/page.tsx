@@ -244,11 +244,11 @@ export default function Journey360Page() {
   const taskGmvHistory = selectedJourney ? getTaskGmvHistory(selectedJourney.history) : [];
 
   const formatGmv = (value: number) => {
-    if (value >= 1_00_00_000) {
-        return `₹${(value / 1_00_00_000).toFixed(2)} Cr`;
+    if (value >= 10000000) {
+      return `₹${(value / 10000000).toFixed(2)} Cr`;
     }
-    if (value >= 1_00_000) {
-        return `₹${(value / 1_00_000).toFixed(2)} L`;
+    if (value >= 100000) {
+      return `₹${(value / 100000).toFixed(2)} L`;
     }
     return `₹${value.toLocaleString('en-IN')}`;
   };
@@ -533,6 +533,8 @@ export default function Journey360Page() {
     </Dialog>
   );
 }
+
+    
 
     
 
