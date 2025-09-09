@@ -202,6 +202,34 @@ export async function updateJourney(journey: CustomerJourney): Promise<void> {
 }
 
 export async function getAllJourneys(): Promise<CustomerJourney[]> {
+    // 1. Fetch all event data from all stage tables
+    const [recceHistory, tddmHistory, advanceMeetingHistory, closureHistory] = await Promise.all([
+        supabase.from('recce_data').select('*'),
+        supabase.from('tddm_data').select('*'),
+        supabase.from('advance_meeting').select('*'),
+        supabase.from('closure_data').select('*'),
+    ]);
+    
+    if (recceHistory.error || tddmHistory.error || advanceMeetingHistory.error || closureHistory.error) {
+        console.error("Error fetching history data:", recceHistory.error || tddmHistory.error || advanceMeetingHistory.error || closureHistory.error);
+        throw new Error("Could not fetch journey history from Supabase.");
+    }
+
+    const allHistoryEvents = [
+        ...(recceHistory.data || []).map(e => ({ ...e, task: 'Recce' })),
+        ...(tddmHistory.data || []).map(e => ({ ...e, task: 'TDDM' })),
+        ...(advanceMeetingHistory.data || []).map(e => ({ ...e, task: 'Advance Meeting' })),
+        ...(closureHistory.data || []).map(e => ({ ...e, task: 'Closure' }))
+    ];
+    
+    // 2. Get a unique list of all CRNs from the history
+    const allCrns = [...new Set(allHistoryEvents.map(e => e.crn))];
+    
+    if (allCrns.length === 0) {
+        return [];
+    }
+
+    // 3. Fetch journey_data and raw_data for all unique CRNs
     const { data: journeysData, error: journeysError } = await supabase
         .from('journey_data')
         .select(`
@@ -212,78 +240,117 @@ export async function getAllJourneys(): Promise<CustomerJourney[]> {
             quoted_gmv,
             final_gmv,
             raw_data:raw_data!crn(city, customer_name, customer_email, customer_phone, gmv)
-        `);
+        `)
+        .in('crn', allCrns);
 
     if (journeysError) {
         console.error('Error fetching journeys:', journeysError);
         throw new Error('Could not fetch journeys from Supabase.');
     }
+    
+    const { data: rawDataForAll, error: rawDataError } = await supabase
+        .from('raw_data')
+        .select('*')
+        .in('crn', allCrns);
 
-    // Fetch all history events from all tables. This is inefficient but straightforward.
-    // A better approach would be a database function or more complex queries.
-    const [recceHistory, tddmHistory, advanceMeetingHistory, closureHistory] = await Promise.all([
-        supabase.from('recce_data').select('*'),
-        supabase.from('tddm_data').select('*'),
-        supabase.from('advance_meeting').select('*'),
-        supabase.from('closure_data').select('*')
-    ]);
+    if(rawDataError) {
+        console.error('Error fetching raw data:', rawDataError);
+        throw new Error('Could not fetch raw data from Supabase.');
+    }
 
-    const allHistoryEvents = [
-        ...(recceHistory.data || []).map(e => ({ ...e, task: 'Recce' })),
-        ...(tddmHistory.data || []).map(e => ({ ...e, task: 'TDDM' })),
-        ...(advanceMeetingHistory.data || []).map(e => ({ ...e, task: 'Advance Meeting' })),
-        ...(closureHistory.data || []).map(e => ({ ...e, task: 'Closure' }))
-    ];
-
+    // 4. Create maps for easy lookup
     const historyByCrn = allHistoryEvents.reduce((acc, event) => {
-        const crn = event.crn;
-        if (!acc[crn]) {
-            acc[crn] = [];
-        }
-        acc[crn].push(event);
+        if (!acc[event.crn]) acc[event.crn] = [];
+        acc[event.crn].push(event);
         return acc;
     }, {} as Record<string, any[]>);
 
-    // Sort history for each journey
-    for (const crn in historyByCrn) {
-        historyByCrn[crn].sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime());
-    }
+    const journeyDataByCrn = journeysData.reduce((acc, j) => {
+        acc[j.crn] = j;
+        return acc;
+    }, {} as Record<string, (typeof journeysData)[0]>);
+    
+    const rawDataByCrn = rawDataForAll.reduce((acc, r) => {
+        acc[r.crn] = r;
+        return acc;
+    }, {} as Record<string, (typeof rawDataForAll)[0]>);
 
-    return journeysData.map((journey): CustomerJourney => {
-        const rawData = Array.isArray(journey.raw_data) ? journey.raw_data[0] : journey.raw_data;
-        const journeyHistory = (historyByCrn[journey.crn] || []).map(event => {
-            return {
-                id: event.event_id,
-                stage: {
-                    crn: event.crn,
-                    city: event.city,
-                    task: event.task as Task,
-                    subTask: event.subtask as SubTask,
-                },
-                user: event.user,
-                timestamp: event.timestamp,
-                ...event
-            } as StageEvent;
-        });
+
+    // 5. Construct the final CustomerJourney array
+    return allCrns.map((crn): CustomerJourney | null => {
+        const journeyInfo = journeyDataByCrn[crn];
+        const rawInfo = rawDataByCrn[crn];
+        const journeyHistoryRaw = historyByCrn[crn] || [];
+        
+        // Every journey must have raw_info to be valid
+        if(!rawInfo) return null;
+
+        journeyHistoryRaw.sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime());
+
+        const journeyHistory = journeyHistoryRaw.map(event => ({
+            id: event.event_id,
+            stage: {
+                crn: event.crn,
+                city: event.city,
+                task: event.task as Task,
+                subTask: event.subtask as SubTask,
+            },
+            user: event.user,
+            timestamp: event.timestamp,
+            ...event
+        } as StageEvent));
+        
+        const lastEvent = journeyHistory[journeyHistory.length - 1];
+
+        // Determine current stage. Use journey_data if available, otherwise calculate from history
+        let currentStage: Omit<StageRef, 'crn'>;
+        let isClosed = false;
+
+        if (journeyInfo) {
+            currentStage = {
+                task: journeyInfo.current_task as Task,
+                subTask: journeyInfo.current_subtask as SubTask,
+                city: rawInfo.city,
+            };
+            isClosed = journeyInfo.is_closed;
+        } else if (lastEvent) {
+             const currentTask = lastEvent.stage.task;
+             const currentSubTask = lastEvent.stage.subTask;
+             const subTaskArray = stageMap[currentTask];
+             const currentSubTaskIndex = subTaskArray.indexOf(currentSubTask);
+             
+             if (currentSubTaskIndex < subTaskArray.length - 1) {
+                 currentStage = { task: currentTask, subTask: subTaskArray[currentSubTaskIndex + 1], city: rawInfo.city };
+             } else {
+                 const currentTaskIndex = tasks.indexOf(currentTask);
+                 if (currentTaskIndex < tasks.length - 1) {
+                     const nextTask = tasks[currentTaskIndex + 1];
+                     currentStage = { task: nextTask, subTask: stageMap[nextTask][0], city: rawInfo.city };
+                 } else {
+                     // This is the last possible stage
+                     currentStage = lastEvent.stage;
+                     isClosed = true;
+                 }
+             }
+        } else {
+            // Should not happen if CRN came from history, but as a fallback
+            return null;
+        }
 
         return {
-            crn: journey.crn,
-            city: rawData?.city,
-            customerName: rawData?.customer_name,
-            customerEmail: rawData?.customer_email,
-            customerPhone: rawData?.customer_phone,
-            gmv: rawData?.gmv,
+            crn: crn,
+            city: rawInfo.city,
+            customerName: rawInfo.customer_name,
+            customerEmail: rawInfo.customer_email,
+            customerPhone: rawInfo.customer_phone,
+            gmv: rawInfo.gmv,
             history: journeyHistory,
-            currentStage: {
-                task: journey.current_task as Task,
-                subTask: journey.current_subtask as SubTask,
-                city: rawData?.city,
-            },
-            isClosed: journey.is_closed,
-            quotedGmv: journey.quoted_gmv,
-            finalGmv: journey.final_gmv,
+            currentStage: currentStage,
+            isClosed: isClosed,
+            quotedGmv: journeyInfo?.quoted_gmv ?? rawInfo.gmv,
+            finalGmv: journeyInfo?.final_gmv,
         };
-    });
+    }).filter((j): j is CustomerJourney => j !== null); // Filter out any nulls
 }
 
 
@@ -421,3 +488,5 @@ export async function getJourney(crn: string, newJourneyDetails: NewJourneyDetai
 
     return newJourney;
 }
+
+    
