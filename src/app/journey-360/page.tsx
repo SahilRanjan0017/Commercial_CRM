@@ -364,7 +364,6 @@ export default function Journey360Page() {
                           countedCrnsForStage.FirstMeeting.add(j.crn);
                           achievedCounts.FirstMeeting++;
                       }
-                      // For now, Qualifying Meeting is the same as First Meeting
                       if (!countedCrnsForStage.QualifyingMeeting.has(j.crn)) {
                            countedCrnsForStage.QualifyingMeeting.add(j.crn);
                            achievedCounts.QualifyingMeeting++;
@@ -372,7 +371,11 @@ export default function Journey360Page() {
                   }
                   
                   if ('expectedGmv' in event && event.expectedGmv && event.expectedGmv > 0) hasQuotedGmvInPeriod = true;
-                  if (stageTask === 'Closure' && 'finalGmv' in event && event.finalGmv && event.finalGmv > 0) finalGmv += event.finalGmv;
+                  
+                  if (stageTask === 'Closure' && 'finalGmv' in event && event.finalGmv && event.finalGmv > 0) {
+                      const closureEvent = event as ClosureMeetingData;
+                      finalGmv += closureEvent.finalGmv;
+                  }
               }
           });
           
@@ -724,3 +727,5 @@ export default function Journey360Page() {
     </Dialog>
   );
 }
+
+    
