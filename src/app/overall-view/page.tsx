@@ -275,4 +275,5 @@ export default function OverallViewPage() {
                 </Card>
             </main>
         </div>
-    
+    );
+}
