@@ -271,11 +271,15 @@ export default function Journey360Page() {
     const dateRange = getDateRangeForFilter(monthFilter);
 
     const hasEventInPeriod = (task: Task | 'FirstMeeting' | 'QualifyingMeeting') => {
+        if (task === 'FirstMeeting' && journey.createdAt) {
+            return isWithinInterval(new Date(journey.createdAt), dateRange);
+        }
+        
         return journey.history.some(event => {
             const eventDate = new Date(event.timestamp);
             if (!isWithinInterval(eventDate, dateRange)) return false;
 
-            if (task === 'FirstMeeting' || task === 'QualifyingMeeting') {
+            if (task === 'QualifyingMeeting') {
                 return event.stage.subTask === 'TDDM Initial Meeting';
             }
             return event.stage.task === task;
@@ -345,6 +349,8 @@ export default function Journey360Page() {
       
       let quotedGmv = 0;
       let finalGmv = 0;
+      
+      achievedCounts.FirstMeeting = journeysInScope.filter(j => j.createdAt && isWithinInterval(new Date(j.createdAt), dateRange)).length;
 
       journeysInScope.forEach(j => {
           let hasQuotedGmvInPeriod = false;
@@ -354,16 +360,12 @@ export default function Journey360Page() {
                   const stageTask = event.stage.task;
                   const stageSubTask = event.stage.subTask;
 
-                  if (!countedCrnsForStage[stageTask].has(j.crn)) {
+                  if (stageTask !== 'Recce' && !countedCrnsForStage[stageTask].has(j.crn)) {
                       countedCrnsForStage[stageTask].add(j.crn);
                       achievedCounts[stageTask]++;
                   }
 
                   if (stageSubTask === 'TDDM Initial Meeting') {
-                      if (!countedCrnsForStage.FirstMeeting.has(j.crn)) {
-                          countedCrnsForStage.FirstMeeting.add(j.crn);
-                          achievedCounts.FirstMeeting++;
-                      }
                       if (!countedCrnsForStage.QualifyingMeeting.has(j.crn)) {
                            countedCrnsForStage.QualifyingMeeting.add(j.crn);
                            achievedCounts.QualifyingMeeting++;
@@ -372,7 +374,7 @@ export default function Journey360Page() {
                   
                   if ('expectedGmv' in event && event.expectedGmv && event.expectedGmv > 0) hasQuotedGmvInPeriod = true;
                   
-                  if (stageTask === 'Closure' && 'finalGmv' in event && event.finalGmv && event.finalGmv > 0) {
+                  if (stageTask === 'Closure' && event.stage.subTask === 'Closure Meeting (BA Collection)' && 'finalGmv' in event && event.finalGmv && event.finalGmv > 0) {
                       finalGmv += event.finalGmv;
                   }
               }
