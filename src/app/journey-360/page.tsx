@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useEffect } from 'react';
@@ -24,6 +25,7 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Separator } from '@/components/ui/separator';
 import { cn } from '@/lib/utils';
 import { PasswordDialog } from '@/components/password-dialog';
+import { subMonths, startOfMonth, endOfMonth, startOfToday, endOfToday, isWithinInterval } from 'date-fns';
 
 type JourneyFilter = Task | 'All' | 'QuotedGMV' | 'FinalGMV' | 'FirstMeeting';
 
@@ -33,12 +35,20 @@ interface TaskGmvHistoryItem {
   date: string | null;
 }
 
+const monthFilterOptions = [
+    { value: 'MTD', label: 'MTD' },
+    ...Array.from({ length: 8 }, (_, i) => ({
+        value: `M-${i + 1}`,
+        label: `M-${i + 1}`
+    }))
+];
 
 export default function Journey360Page() {
   const [journeys, setJourneys] = useState<CustomerJourney[]>([]);
   const [loading, setLoading] = useState(true);
   const [activeFilter, setActiveFilter] = useState<JourneyFilter>('All');
   const [cityFilter, setCityFilter] = useState<string>('All');
+  const [monthFilter, setMonthFilter] = useState<string>('MTD');
   const [crnSearch, setCrnSearch] = useState('');
   const [selectedJourney, setSelectedJourney] = useState<CustomerJourney | null>(null);
   const [uploadedFiles, setUploadedFiles] = useState<any[]>([]);
@@ -91,10 +101,24 @@ export default function Journey360Page() {
       setSelectedJourney(journey);
       fetchFilesForJourney(journey.crn);
   };
+
+  const getDateRangeForFilter = (filter: string): { start: Date; end: Date } => {
+    const now = new Date();
+    if (filter === 'MTD') {
+      return { start: startOfMonth(now), end: endOfToday() };
+    }
+    const monthOffset = parseInt(filter.replace('M-', ''), 10);
+    const targetMonth = subMonths(now, monthOffset);
+    return { start: startOfMonth(targetMonth), end: endOfMonth(targetMonth) };
+  };
   
   const filteredJourneys = journeys.filter(journey => {
       const crnFilterMatch = crnSearch.trim() === '' || journey.crn.toLowerCase().includes(crnSearch.toLowerCase().trim());
       const cityFilterMatch = cityFilter === 'All' || journey.city === cityFilter;
+
+      const dateRange = getDateRangeForFilter(monthFilter);
+      const lastEventTimestamp = journey.history.length > 0 ? new Date(journey.history[journey.history.length - 1].timestamp) : new Date(0);
+      const monthFilterMatch = isWithinInterval(lastEventTimestamp, dateRange);
 
       let statusFilterMatch = true;
       if (activeFilter === 'All') {
@@ -109,7 +133,7 @@ export default function Journey360Page() {
           statusFilterMatch = journey.currentStage.task === activeFilter;
       }
 
-      return statusFilterMatch && crnFilterMatch && cityFilterMatch;
+      return statusFilterMatch && crnFilterMatch && cityFilterMatch && monthFilterMatch;
   });
 
   const downloadCSV = () => {
@@ -140,7 +164,12 @@ export default function Journey360Page() {
   };
   
   const getDashboardData = () => {
-      const journeysToCount = cityFilter === 'All' ? journeys : journeys.filter(j => j.city === cityFilter);
+      const dateRange = getDateRangeForFilter(monthFilter);
+      const journeysToCount = (cityFilter === 'All' ? journeys : journeys.filter(j => j.city === cityFilter))
+          .filter(j => {
+              const lastEventTimestamp = j.history.length > 0 ? new Date(j.history[j.history.length - 1].timestamp) : new Date(0);
+              return isWithinInterval(lastEventTimestamp, dateRange);
+          });
       
       const counts = tasks.reduce((acc, task) => ({...acc, [task]: 0}), {} as Record<Task, number>);
       let quotedGmv = 0;
@@ -267,17 +296,29 @@ export default function Journey360Page() {
                 <CardHeader>
                     <div className="flex justify-between items-center">
                         <CardTitle>Dashboard</CardTitle>
-                         <Select value={cityFilter} onValueChange={setCityFilter}>
-                            <SelectTrigger className="w-[180px]">
-                                <SelectValue placeholder="Select City" />
-                            </SelectTrigger>
-                            <SelectContent>
-                                <SelectItem value="All">All Cities</SelectItem>
-                                {areCities.map(city => (
-                                    <SelectItem key={city} value={city}>{city}</SelectItem>
-                                ))}
-                            </SelectContent>
-                        </Select>
+                        <div className="flex gap-2">
+                            <Select value={monthFilter} onValueChange={setMonthFilter}>
+                                <SelectTrigger className="w-[120px]">
+                                    <SelectValue placeholder="Select Month" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    {monthFilterOptions.map(option => (
+                                        <SelectItem key={option.value} value={option.value}>{option.label}</SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
+                            <Select value={cityFilter} onValueChange={setCityFilter}>
+                                <SelectTrigger className="w-[180px]">
+                                    <SelectValue placeholder="Select City" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="All">All Cities</SelectItem>
+                                    {areCities.map(city => (
+                                        <SelectItem key={city} value={city}>{city}</SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
+                        </div>
                     </div>
                 </CardHeader>
                 <CardContent className="grid grid-cols-2 gap-4">
