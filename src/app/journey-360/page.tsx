@@ -8,7 +8,7 @@ import { Badge } from '@/components/ui/badge';
 import Link from 'next/link';
 import Image from 'next/image';
 import { Button } from '@/components/ui/button';
-import { HomeIcon, Loader2, Download, AreaChart, Search, BrainCircuit, User, Mail, Phone, Calculator, FolderOpen, FileImage, Building, IndianRupee } from 'lucide-react';
+import { HomeIcon, Loader2, Download, AreaChart, Search, BrainCircuit, User, Mail, Phone, Calculator, FolderOpen, FileImage, Building, IndianRupee, TrendingUp, Target, CheckCircle } from 'lucide-react';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import type { CustomerJourney, NegotiationData, Task, RecceFormSubmissionData, TDDMInitialMeetingData, ClosureMeetingData, StageEvent, SiteVisitData, AgreementDiscussionData, AdvanceMeetingFollowUpData } from '@/types';
 import { tasks } from '@/types';
@@ -25,7 +25,7 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Separator } from '@/components/ui/separator';
 import { cn } from '@/lib/utils';
 import { PasswordDialog } from '@/components/password-dialog';
-import { subMonths, startOfMonth, endOfMonth, startOfToday, endOfToday, isWithinInterval } from 'date-fns';
+import { subMonths, startOfMonth, endOfMonth, startOfToday, endOfToday, isWithinInterval, getDate, getDaysInMonth } from 'date-fns';
 
 type JourneyFilter = Task | 'All' | 'QuotedGMV' | 'FinalGMV' | 'FirstMeeting';
 
@@ -42,6 +42,13 @@ const monthFilterOptions = [
         label: `M-${i + 1}`
     }))
 ];
+
+const stageTargets: Record<Task, number> = {
+    'Recce': 20,
+    'TDDM': 15,
+    'Advance Meeting': 10,
+    'Closure': 5,
+};
 
 export default function Journey360Page() {
   const [journeys, setJourneys] = useState<CustomerJourney[]>([]);
@@ -167,8 +174,8 @@ export default function Journey360Page() {
       const dateRange = getDateRangeForFilter(monthFilter);
       const journeysToCount = (cityFilter === 'All' ? journeys : journeys.filter(j => j.city === cityFilter))
           .filter(j => {
-              const lastEventTimestamp = j.history.length > 0 ? new Date(j.history[j.history.length - 1].timestamp) : new Date(0);
-              return isWithinInterval(lastEventTimestamp, dateRange);
+              const firstEventOfMonth = j.history.find(e => isWithinInterval(new Date(e.timestamp), dateRange));
+              return !!firstEventOfMonth;
           });
       
       const counts = tasks.reduce((acc, task) => ({...acc, [task]: 0}), {} as Record<Task, number>);
@@ -181,6 +188,9 @@ export default function Journey360Page() {
               if(j.currentStage.task) {
                   counts[j.currentStage.task]++;
               }
+          } else {
+            // For closed journeys, count them in the 'Closure' stage for dashboard purposes
+            counts['Closure']++;
           }
           if (j.quotedGmv && j.quotedGmv > 0) {
               quotedGmv += j.quotedGmv;
@@ -188,16 +198,20 @@ export default function Journey360Page() {
           if (j.isClosed && j.finalGmv && j.finalGmv > 0) {
             finalGmv += j.finalGmv;
           }
-          if (j.history.some(e => e.stage.subTask === 'TDDM Initial Meeting')) {
+          if (j.history.some(e => e.stage.subTask === 'TDDM Initial Meeting' && isWithinInterval(new Date(e.timestamp), dateRange))) {
             firstMeetingCount++;
           }
       });
       const stageCounts = tasks.map(task => ({ stage: task, count: counts[task] }));
+      
+      const today = new Date();
+      const monthProgress = monthFilter.startsWith('M-') ? 100 : (getDate(today) / getDaysInMonth(today)) * 100;
 
-      return { stageCounts, quotedGmv, finalGmv, firstMeetingCount };
+
+      return { stageCounts, quotedGmv, finalGmv, firstMeetingCount, monthProgress: monthProgress.toFixed(0) };
   }
   
-  const { stageCounts, quotedGmv, finalGmv, firstMeetingCount } = getDashboardData();
+  const { stageCounts, quotedGmv, finalGmv, firstMeetingCount, monthProgress } = getDashboardData();
   const isImage = (fileName: string) => /\.(jpe?g|png|gif|webp)$/i.test(fileName);
   
   const getTaskGmvHistory = (history: StageEvent[]): TaskGmvHistoryItem[] => {
@@ -238,6 +252,26 @@ export default function Journey360Page() {
     }
     return value.toLocaleString('en-IN');
   };
+
+  const DashboardCard = ({ title, value, icon: Icon, onClick, isActive }: { title: string; value: string | number; icon: React.ElementType, onClick?: () => void, isActive?: boolean }) => (
+    <Card
+      className={cn(
+        "p-4 flex flex-col items-center justify-center cursor-pointer hover:bg-muted/50 transition-all duration-200",
+        isActive && 'bg-muted ring-2 ring-primary'
+      )}
+      onClick={onClick}
+    >
+      <div className="flex items-center gap-4 w-full">
+        <div className="p-3 bg-primary/10 rounded-lg">
+          <Icon className="w-6 h-6 text-primary" />
+        </div>
+        <div className="flex-1 text-right">
+          <p className="text-2xl font-bold">{value}</p>
+          <p className="text-sm text-muted-foreground">{title}</p>
+        </div>
+      </div>
+    </Card>
+  );
 
 
   return (
@@ -321,51 +355,23 @@ export default function Journey360Page() {
                         </div>
                     </div>
                 </CardHeader>
-                <CardContent className="grid grid-cols-2 gap-4">
-                    <Card
-                      className={cn(
-                        "p-4 flex flex-col items-center justify-center cursor-pointer hover:bg-muted",
-                        activeFilter === 'QuotedGMV' && 'bg-muted ring-2 ring-primary'
-                      )}
-                      onClick={() => setActiveFilter('QuotedGMV')}
-                    >
-                        <p className="text-2xl font-bold">{formatGmv(quotedGmv)}</p>
-                        <p className="text-sm text-muted-foreground">Quoted GMV</p>
-                    </Card>
-                     <Card
-                      className={cn(
-                        "p-4 flex flex-col items-center justify-center cursor-pointer hover:bg-muted",
-                        activeFilter === 'FinalGMV' && 'bg-muted ring-2 ring-primary'
-                      )}
-                      onClick={() => setActiveFilter('FinalGMV')}
-                     >
-                        <p className="text-2xl font-bold">{formatGmv(finalGmv)}</p>
-                        <p className="text-sm text-muted-foreground">Final GMV</p>
-                    </Card>
-                    <Card
-                      className={cn(
-                        "p-4 flex flex-col items-center justify-center cursor-pointer hover:bg-muted",
-                        activeFilter === 'FirstMeeting' && 'bg-muted ring-2 ring-primary'
-                      )}
-                      onClick={() => setActiveFilter('FirstMeeting')}
-                     >
-                        <p className="text-3xl font-bold">{firstMeetingCount}</p>
-                        <p className="text-sm text-muted-foreground">First Meeting</p>
-                    </Card>
+                <CardContent className="space-y-6">
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                         <DashboardCard title="Quoted GMV" value={formatGmv(quotedGmv)} icon={IndianRupee} onClick={() => setActiveFilter('QuotedGMV')} isActive={activeFilter === 'QuotedGMV'} />
+                         <DashboardCard title="Final GMV" value={formatGmv(finalGmv)} icon={IndianRupee} onClick={() => setActiveFilter('FinalGMV')} isActive={activeFilter === 'FinalGMV'} />
+                         <DashboardCard title="First Meetings" value={firstMeetingCount} icon={User} onClick={() => setActiveFilter('FirstMeeting')} isActive={activeFilter === 'FirstMeeting'} />
+                    </div>
+
                     {stageCounts.map(item => (
-                        <Card key={item.stage} className="p-4 flex flex-col items-center justify-center cursor-pointer hover:bg-muted" onClick={() => setActiveFilter(item.stage)}>
-                            <p className="text-3xl font-bold">{item.count}</p>
-                            <p className="text-sm text-muted-foreground">{item.stage}</p>
-                        </Card>
+                        <div key={item.stage} className="space-y-2">
+                            <h4 className="text-md font-semibold text-center text-muted-foreground">{item.stage}</h4>
+                            <div className="grid grid-cols-3 gap-4">
+                                <DashboardCard title="Target" value={stageTargets[item.stage]} icon={Target} />
+                                <DashboardCard title="Achieved" value={item.count} icon={CheckCircle} onClick={() => setActiveFilter(item.stage)} isActive={activeFilter === item.stage} />
+                                <DashboardCard title="Month Progress" value={`${monthProgress}%`} icon={TrendingUp} />
+                            </div>
+                        </div>
                     ))}
-                </CardContent>
-            </Card>
-            <Card>
-                <CardHeader>
-                    <CardTitle>Customer Journey Funnel</CardTitle>
-                </CardHeader>
-                <CardContent className="flex items-center justify-center">
-                    <FunnelChart data={stageCounts} activeFilter={activeFilter} onFilterChange={setActiveFilter} />
                 </CardContent>
             </Card>
         </div>
