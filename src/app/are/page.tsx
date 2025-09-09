@@ -10,7 +10,6 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip"
 import { AreForm } from '@/components/are-form';
-import { PasswordDialog } from '@/components/password-dialog';
 
 export default function ArePage() {
   return (
@@ -23,12 +22,12 @@ export default function ArePage() {
             <TooltipProvider>
               <Tooltip>
                 <TooltipTrigger asChild>
-                  <PasswordDialog href="/range-calculator">
+                  <Link href="/range-calculator">
                     <Button variant="outline">
                       <Calculator className="mr-2 h-4 w-4" />
                       Range Calculator
                     </Button>
-                  </PasswordDialog>
+                  </Link>
                 </TooltipTrigger>
                 <TooltipContent>
                   <p>Range Calculator</p>
@@ -50,12 +49,12 @@ export default function ArePage() {
                 </TooltipContent>
               </Tooltip>
             </TooltipProvider>
-            <PasswordDialog href="/journey-360">
+            <Link href="/journey-360">
               <Button variant="outline">
                 <AreaChart className="mr-2 h-4 w-4" />
                 Journey 360°
               </Button>
-            </PasswordDialog>
+            </Link>
             <Link href="/">
               <Button variant="outline">
                 <HomeIcon className="mr-2 h-4 w-4" />

@@ -7,7 +7,6 @@ import Image from 'next/image';
 import { Button } from '@/components/ui/button';
 import { AreaChart, BrainCircuit, Calculator, HomeIcon, Loader2, ArrowLeft } from 'lucide-react';
 import { Tooltip, TooltipProvider, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
-import { PasswordDialog } from '@/components/password-dialog';
 import { Card, CardContent, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow, TableFooter } from '@/components/ui/table';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -256,9 +255,9 @@ export default function OverallViewPage() {
                             <TooltipContent><p>Asset Recommendation Engine</p></TooltipContent>
                         </Tooltip>
                     </TooltipProvider>
-                    <PasswordDialog href="/journey-360">
+                    <Link href="/journey-360">
                         <Button variant="outline"><AreaChart className="mr-2 h-4 w-4" />Journey 360°</Button>
-                    </PasswordDialog>
+                    </Link>
                     <Link href="/">
                         <Button variant="outline"><HomeIcon className="mr-2 h-4 w-4" />Home</Button>
                     </Link>
