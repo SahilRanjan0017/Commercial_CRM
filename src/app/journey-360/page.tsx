@@ -316,40 +316,55 @@ export default function Journey360Page() {
   
   const getDashboardData = () => {
       const dateRange = getDateRangeForFilter(monthFilter);
+      
       const journeysInScope = journeys.filter(j => {
           if (cityFilter === 'All') return true;
           return cityGroups[cityFilter]?.includes(j.city) ?? false;
       });
-      
-      const journeysToCount = journeysInScope.filter(j => {
-          return j.history.length > 0
-              ? j.history.some(e => isWithinInterval(new Date(e.timestamp), dateRange))
-              : j.createdAt ? isWithinInterval(new Date(j.createdAt), dateRange) : false;
-      });
-      
+
       const counts = tasks.reduce((acc, task) => ({...acc, [task]: 0}), {} as Record<Task, number>);
       let quotedGmv = 0;
       let finalGmv = 0;
       let firstMeetingCount = 0;
+      
+      const countedCrnsForStage: Record<Task, Set<string>> = {
+          'Recce': new Set(),
+          'TDDM': new Set(),
+          'Advance Meeting': new Set(),
+          'Closure': new Set(),
+      };
 
-      journeysToCount.forEach(j => {
-          if(!j.isClosed) {
-              if(j.currentStage.task) {
-                  counts[j.currentStage.task]++;
+      journeysInScope.forEach(j => {
+          let hasQuotedGmvInPeriod = false;
+
+          j.history.forEach(event => {
+              if (isWithinInterval(new Date(event.timestamp), dateRange)) {
+                  // Count each stage only once per CRN within the period
+                  if (!countedCrnsForStage[event.stage.task].has(j.crn)) {
+                      counts[event.stage.task]++;
+                      countedCrnsForStage[event.stage.task].add(j.crn);
+                  }
+
+                  if (event.stage.subTask === 'TDDM Initial Meeting') {
+                      firstMeetingCount++;
+                  }
+                  
+                  // Track GMV based on events in the date range
+                  if ('expectedGmv' in event && event.expectedGmv && event.expectedGmv > 0) {
+                      hasQuotedGmvInPeriod = true;
+                  }
+                  if (event.stage.task === 'Closure' && 'finalGmv' in event && event.finalGmv && event.finalGmv > 0) {
+                      finalGmv += event.finalGmv;
+                  }
               }
-          } else {
-            counts['Closure']++;
-          }
-          if (j.quotedGmv && j.quotedGmv > 0) {
+          });
+
+          // Add the journey's quoted GMV if any of its relevant events occurred in the period
+          if (hasQuotedGmvInPeriod && j.quotedGmv && j.quotedGmv > 0) {
               quotedGmv += j.quotedGmv;
           }
-          if (j.isClosed && j.finalGmv && j.finalGmv > 0) {
-            finalGmv += j.finalGmv;
-          }
-          if (j.history.some(e => e.stage.subTask === 'TDDM Initial Meeting' && isWithinInterval(new Date(e.timestamp), dateRange))) {
-            firstMeetingCount++;
-          }
       });
+      
       const stageCounts = tasks.map(task => ({ stage: task, count: counts[task] }));
       
       const today = new Date();
@@ -407,8 +422,8 @@ export default function Journey360Page() {
       onClick={onClick}
     >
         <span className="text-2xl font-bold">{value}</span>
-        <span className="text-sm text-muted-foreground text-center">{title}</span>
-    </div>
+        <span className="text-sm text-muted-foreground text-center">{title}</span >
+    </div >
   );
 
 
