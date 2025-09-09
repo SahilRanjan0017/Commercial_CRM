@@ -7,7 +7,7 @@ import { Badge } from '@/components/ui/badge';
 import Link from 'next/link';
 import Image from 'next/image';
 import { Button } from '@/components/ui/button';
-import { HomeIcon, Loader2, Download, AreaChart, Search, BrainCircuit, User, Mail, Phone, Calculator, FolderOpen, FileImage, Building, IndianRupee, TrendingUp, Target, CheckCircle, Percent, ArrowRight } from 'lucide-react';
+import { HomeIcon, Loader2, Download, AreaChart, Search, BrainCircuit, User, Mail, Phone, Calculator, FolderOpen, FileImage, Building, IndianRupee, TrendingUp, Target, CheckCircle, Percent, ArrowRight, Users } from 'lucide-react';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import type { CustomerJourney, NegotiationData, Task, RecceFormSubmissionData, TDDMInitialMeetingData, ClosureMeetingData, StageEvent, SiteVisitData, AgreementDiscussionData, AdvanceMeetingFollowUpData } from '@/types';
 import { tasks } from '@/types';
@@ -63,8 +63,10 @@ const FunnelAnalysis = ({ journeys, cityFilter, monthFilter }: { journeys: Custo
     const dateRange = getDateRangeForFilter(monthFilter);
     const filteredJourneys = journeys.filter(journey => {
         const cityFilterMatch = cityFilter === 'All' || journey.city === cityFilter;
-        const lastEventTimestamp = journey.history.length > 0 ? new Date(journey.history[journey.history.length - 1].timestamp) : new Date(0);
-        const monthFilterMatch = isWithinInterval(lastEventTimestamp, dateRange);
+        // Check if any event in the history falls within the date range
+        const monthFilterMatch = journey.history.some(event => 
+            isWithinInterval(new Date(event.timestamp), dateRange)
+        );
         return cityFilterMatch && monthFilterMatch;
     });
     
@@ -100,7 +102,7 @@ const FunnelAnalysis = ({ journeys, cityFilter, monthFilter }: { journeys: Custo
         return acc;
     }, { total_crn: 0, total_first_meeting: 0, total_recce: 0, total_tddm: 0, total_adv_meeting: 0, total_closure: 0 });
 
-    const total_meetings_count = agg.total_first_meeting + agg.total_recce + agg.total_tddm + agg.total_adv_meeting + agg.total_closure;
+    const totalLeads = agg.total_crn;
     const pct_first_to_recce = agg.total_first_meeting > 0 ? (agg.total_recce / agg.total_first_meeting) * 100 : 0;
     const pct_tddm = agg.total_crn > 0 ? (agg.total_tddm / agg.total_crn) * 100 : 0;
     const pct_adv_meeting = agg.total_first_meeting > 0 ? (agg.total_adv_meeting / agg.total_first_meeting) * 100 : 0;
@@ -111,9 +113,10 @@ const FunnelAnalysis = ({ journeys, cityFilter, monthFilter }: { journeys: Custo
     const cnt_tddm_to_adv_meeting = stageFlags.filter(f => f.has_tddm && f.has_adv_meeting).length;
     const cnt_adv_meeting_to_closure = stageFlags.filter(f => f.has_adv_meeting && f.has_closure).length;
     
-    const AnalysisMetric = ({ value, label, isPercentage = false }: { value: string | number, label: string, isPercentage?: boolean }) => (
+    const AnalysisMetric = ({ value, label, isPercentage = false, icon: Icon }: { value: string | number, label: string, isPercentage?: boolean, icon?: React.ElementType }) => (
          <div className="flex flex-col items-center justify-center p-4 rounded-lg bg-muted/50">
             <div className="flex items-baseline gap-2">
+                {Icon && <Icon className="w-6 h-6 text-muted-foreground mb-1" />}
                 <span className="text-3xl font-bold">{typeof value === 'number' ? value.toFixed(isPercentage ? 2 : 0) : value}</span>
                 {isPercentage && <Percent className="w-5 h-5 text-muted-foreground" />}
             </div>
@@ -142,7 +145,7 @@ const FunnelAnalysis = ({ journeys, cityFilter, monthFilter }: { journeys: Custo
                 <div>
                      <h4 className="font-semibold text-lg mb-4 text-center">Conversion Percentages</h4>
                      <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
-                        <AnalysisMetric value={total_meetings_count} label="Total Meetings" />
+                        <AnalysisMetric value={totalLeads} label="Total Leads" icon={Users} />
                         <AnalysisMetric value={pct_first_to_recce} label="% First Meeting to Recce" isPercentage />
                         <AnalysisMetric value={pct_tddm} label="% TDDM" isPercentage />
                         <AnalysisMetric value={pct_adv_meeting} label="% Advance Meeting" isPercentage />
@@ -237,8 +240,10 @@ export default function Journey360Page() {
       const cityFilterMatch = cityFilter === 'All' || journey.city === cityFilter;
 
       const dateRange = getDateRangeForFilter(monthFilter);
-      const lastEventTimestamp = journey.history.length > 0 ? new Date(journey.history[journey.history.length - 1].timestamp) : new Date(0);
-      const monthFilterMatch = isWithinInterval(lastEventTimestamp, dateRange);
+       // Check if any event in the history falls within the date range
+      const monthFilterMatch = journey.history.some(event => 
+          isWithinInterval(new Date(event.timestamp), dateRange)
+      );
 
       let statusFilterMatch = true;
       if (activeFilter === 'All') {
@@ -285,11 +290,11 @@ export default function Journey360Page() {
   
   const getDashboardData = () => {
       const dateRange = getDateRangeForFilter(monthFilter);
-      const journeysToCount = (cityFilter === 'All' ? journeys : journeys.filter(j => j.city === cityFilter))
-          .filter(j => {
-              const firstEventOfMonth = j.history.find(e => isWithinInterval(new Date(e.timestamp), dateRange));
-              return !!firstEventOfMonth;
-          });
+      const journeysInScope = (cityFilter === 'All' ? journeys : journeys.filter(j => j.city === cityFilter));
+      
+      const journeysToCount = journeysInScope.filter(j => {
+            return j.history.some(e => isWithinInterval(new Date(e.timestamp), dateRange));
+      });
       
       const counts = tasks.reduce((acc, task) => ({...acc, [task]: 0}), {} as Record<Task, number>);
       let quotedGmv = 0;
@@ -647,3 +652,5 @@ export default function Journey360Page() {
     </Dialog>
   );
 }
+
+    
