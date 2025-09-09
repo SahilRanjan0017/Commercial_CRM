@@ -478,10 +478,10 @@ export default function Journey360Page() {
                     ))}
                 </CardContent>
             </Card>
-            <FunnelAnalysis journeys={journeys} cityFilter={cityFilter} monthFilter={monthFilter} />
         </div>
         
-        <div className="md:col-span-2 flex flex-col">
+        <div className="md:col-span-2 flex flex-col gap-6">
+            <FunnelAnalysis journeys={journeys} cityFilter={cityFilter} monthFilter={monthFilter} />
             <Card className="flex-grow flex flex-col">
                 <CardHeader>
                     <CardTitle>Customer Journeys</CardTitle>
@@ -647,11 +647,3 @@ export default function Journey360Page() {
     </Dialog>
   );
 }
-
-    
-
-    
-
-    
-
-    
