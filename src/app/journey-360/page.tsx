@@ -372,11 +372,8 @@ export default function Journey360Page() {
                   
                   if ('expectedGmv' in event && event.expectedGmv && event.expectedGmv > 0) hasQuotedGmvInPeriod = true;
                   
-                  if (stageSubTask === 'Closure Meeting (BA Collection)') {
-                      const closureEvent = event as ClosureMeetingData;
-                      if (closureEvent.finalGmv && closureEvent.finalGmv > 0) {
-                        finalGmv += closureEvent.finalGmv;
-                      }
+                  if (stageTask === 'Closure' && 'finalGmv' in event && event.finalGmv && event.finalGmv > 0) {
+                      finalGmv += event.finalGmv;
                   }
               }
           });
@@ -730,4 +727,5 @@ export default function Journey360Page() {
   );
 }
 
+    
     
