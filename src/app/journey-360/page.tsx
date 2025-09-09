@@ -259,33 +259,35 @@ export default function Journey360Page() {
   };
   
   const filteredJourneys = journeys.filter(journey => {
-      const crnFilterMatch = crnSearch.trim() === '' || journey.crn.toLowerCase().includes(crnSearch.toLowerCase().trim());
-      
-      let cityFilterMatch = true;
-      if (cityFilter !== 'All') {
-          cityFilterMatch = cityGroups[cityFilter]?.includes(journey.city) ?? false;
-      }
+    const crnFilterMatch = crnSearch.trim() === '' || journey.crn.toLowerCase().includes(crnSearch.toLowerCase().trim());
 
-      const dateRange = getDateRangeForFilter(monthFilter);
-      const monthFilterMatch = journey.history.length > 0
-          ? journey.history.some(event => isWithinInterval(new Date(event.timestamp), dateRange))
-          : journey.createdAt ? isWithinInterval(new Date(journey.createdAt), dateRange) : false;
+    const cityFilterMatch = cityFilter === 'All' || (cityGroups[cityFilter]?.includes(journey.city) ?? false);
 
-      let statusFilterMatch = true;
-      if (activeFilter === 'All') {
-          statusFilterMatch = true;
-      } else if (activeFilter === 'QuotedGMV') {
-          statusFilterMatch = !journey.isClosed && typeof journey.quotedGmv === 'number' && journey.quotedGmv >= 1;
-      } else if (activeFilter === 'FinalGMV') {
-          statusFilterMatch = journey.isClosed && typeof journey.finalGmv === 'number' && journey.finalGmv >= 1;
-      } else if (activeFilter === 'FirstMeeting') {
-          statusFilterMatch = journey.history.some(e => e.stage.subTask === 'TDDM Initial Meeting');
-      } else {
-          statusFilterMatch = journey.currentStage.task === activeFilter;
-      }
+    const dateRange = getDateRangeForFilter(monthFilter);
 
-      return statusFilterMatch && crnFilterMatch && cityFilterMatch && monthFilterMatch;
-  });
+    const monthFilterMatch = journey.history.length > 0
+        ? journey.history.some(event => isWithinInterval(new Date(event.timestamp), dateRange))
+        : (journey.createdAt && isWithinInterval(new Date(journey.createdAt), dateRange));
+    
+    if (!monthFilterMatch) return false;
+
+    let statusFilterMatch = true;
+    if (activeFilter === 'All') {
+        statusFilterMatch = true;
+    } else if (activeFilter === 'QuotedGMV') {
+        statusFilterMatch = !journey.isClosed && typeof journey.quotedGmv === 'number' && journey.quotedGmv >= 1 &&
+            journey.history.some(e => isWithinInterval(new Date(e.timestamp), dateRange) && 'expectedGmv' in e && e.expectedGmv > 0);
+    } else if (activeFilter === 'FinalGMV') {
+        statusFilterMatch = journey.isClosed && typeof journey.finalGmv === 'number' && journey.finalGmv >= 1 &&
+            journey.history.some(e => e.stage.task === 'Closure' && isWithinInterval(new Date(e.timestamp), dateRange));
+    } else if (activeFilter === 'FirstMeeting') {
+        statusFilterMatch = journey.history.some(e => e.stage.subTask === 'TDDM Initial Meeting' && isWithinInterval(new Date(e.timestamp), dateRange));
+    } else if (tasks.includes(activeFilter as Task)) {
+        statusFilterMatch = journey.history.some(e => e.stage.task === activeFilter && isWithinInterval(new Date(e.timestamp), dateRange));
+    }
+
+    return statusFilterMatch && crnFilterMatch && cityFilterMatch;
+});
 
   const downloadCSV = () => {
     if (filteredJourneys.length === 0) return;
@@ -720,5 +722,7 @@ export default function Journey360Page() {
     </Dialog>
   );
 }
+
+    
 
     
