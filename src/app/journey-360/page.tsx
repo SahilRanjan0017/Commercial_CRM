@@ -321,31 +321,29 @@ export default function Journey360Page() {
         <div className="md:col-span-1 flex flex-col gap-6">
             <Card>
                 <CardHeader>
-                    <div className="flex justify-between items-center">
+                    <div className="flex items-center gap-4">
                         <CardTitle>Dashboard</CardTitle>
-                        <div className="flex gap-2">
-                            <Select value={monthFilter} onValueChange={setMonthFilter}>
-                                <SelectTrigger className="w-[120px]">
-                                    <SelectValue placeholder="Select Month" />
-                                </SelectTrigger>
-                                <SelectContent>
-                                    {monthFilterOptions.map(option => (
-                                        <SelectItem key={option.value} value={option.value}>{option.label}</SelectItem>
-                                    ))}
-                                </SelectContent>
-                            </Select>
-                            <Select value={cityFilter} onValueChange={setCityFilter}>
-                                <SelectTrigger className="w-[180px]">
-                                    <SelectValue placeholder="Select City" />
-                                </SelectTrigger>
-                                <SelectContent>
-                                    <SelectItem value="All">All Cities</SelectItem>
-                                    {areCities.map(city => (
-                                        <SelectItem key={city} value={city}>{city}</SelectItem>
-                                    ))}
-                                </SelectContent>
-                            </Select>
-                        </div>
+                        <Select value={monthFilter} onValueChange={setMonthFilter}>
+                            <SelectTrigger className="w-[120px]">
+                                <SelectValue placeholder="Select Month" />
+                            </SelectTrigger>
+                            <SelectContent>
+                                {monthFilterOptions.map(option => (
+                                    <SelectItem key={option.value} value={option.value}>{option.label}</SelectItem>
+                                ))}
+                            </SelectContent>
+                        </Select>
+                        <Select value={cityFilter} onValueChange={setCityFilter}>
+                            <SelectTrigger className="w-[180px]">
+                                <SelectValue placeholder="Select City" />
+                            </SelectTrigger>
+                            <SelectContent>
+                                <SelectItem value="All">All Cities</SelectItem>
+                                {areCities.map(city => (
+                                    <SelectItem key={city} value={city}>{city}</SelectItem>
+                                ))}
+                            </SelectContent>
+                        </Select>
                     </div>
                 </CardHeader>
                 <CardContent className="space-y-8">
