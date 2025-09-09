@@ -1,11 +1,12 @@
 
-import { supabase } from '@/lib/supabase';
+import { createClient as createServerClient } from '@/utils/supabase/server';
 import type { CustomerJourney, StageEvent, Task, SubTask, NewJourneyDetails, RecceFormSubmissionData, PostRecceFollowUpData, TDDMInitialMeetingData, TDDMFollowUpData, NegotiationData, SiteVisitData, AgreementDiscussionData, AdvanceMeetingFollowUpData, ClosureMeetingData, PostClosureFollowUpData } from '@/types';
 import { stageMap, tasks } from '@/types';
 
 
 // Helper function to insert data into the correct stage table
 async function insertStageEvent(event: StageEvent) {
+  const supabase = createServerClient();
   const { task, subTask } = event.stage;
   let dataToInsert: any;
   let tableName: string;
@@ -145,6 +146,7 @@ async function insertStageEvent(event: StageEvent) {
 }
 
 export async function updateJourney(journey: CustomerJourney): Promise<void> {
+  const supabase = createServerClient();
   // Step 1: Upsert into raw_data
   const { error: rawDataError } = await supabase.from('raw_data').upsert(
     {
@@ -202,6 +204,7 @@ export async function updateJourney(journey: CustomerJourney): Promise<void> {
 }
 
 export async function getAllJourneys(): Promise<CustomerJourney[]> {
+    const supabase = createServerClient();
     // 1. Fetch all event data from all stage tables AND all raw data
     const [recceHistory, tddmHistory, advanceMeetingHistory, closureHistory, rawDataResponse] = await Promise.all([
         supabase.from('recce_data').select('*'),
@@ -340,6 +343,7 @@ export async function getAllJourneys(): Promise<CustomerJourney[]> {
 
 
 export async function getStageForCrn(crn: string): Promise<StageRef | null> {
+  const supabase = createServerClient();
   const { data, error } = await supabase
     .from('journey_data')
     .select('current_task, current_subtask, raw_data(city)')
@@ -375,6 +379,7 @@ export async function getStageForCrn(crn: string): Promise<StageRef | null> {
 
 
 export async function getJourney(crn: string, newJourneyDetails: NewJourneyDetails): Promise<CustomerJourney> {
+    const supabase = createServerClient();
     const { data: journeyData, error: journeyError } = await supabase
         .from('journey_data')
         .select(`
