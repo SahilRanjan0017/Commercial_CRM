@@ -4,13 +4,12 @@ import * as z from 'zod';
 // --- TYPE DEFINITIONS ---
 
 export const areCities = [
-    'BLR', 'Bangalore', 'Blr Commercial',
+    'BLR', 'Bangalore', 'Blr Commercial', 'Mysore',
     'CHN', 'Chennai', 'CHN Commercial',
     'HYD', 'Hyderabad', 'Hyd Commercial',
     'NCR - Gurgaon', 'NCR - Noida', 'NCR - Faridabad', 
-    'NCR - Delhi', 'NCR - Ghaziabad', 
-    'Pune', 'Pune Commercial',
-    'Mysore'
+    'NCR - Delhi', 'NCR - Ghaziabad', 'NCR Commercial', 'NCR- Gurugram',
+    'Pune', 'Pune Commercial'
 ];
 export const areZoning = ['Residential', 'Commercial', 'Mixed', 'Agriculture', 'Industrial', 'PSP'];
 export const arePlotAreas = ['<2000', '2000-5000', '5000-10000', '10000-15000', '15000-20000', '>20000'];
@@ -210,3 +209,5 @@ export function calculateAreScore(input: AreInput): AreResult {
 
     return { rankedAssets, breakdown };
 }
+
+    

@@ -19,7 +19,6 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/comp
 import { HorizontalJourneyView } from '@/components/horizontal-journey-view';
 import { FunnelChart } from '@/components/funnel-chart';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { areCities } from '@/lib/are-logic';
 import { supabase } from '@/lib/supabase';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Separator } from '@/components/ui/separator';
@@ -43,6 +42,16 @@ const monthFilterOptions = [
     }))
 ];
 
+const cityGroups: Record<string, string[]> = {
+    'BLR': ['BLR', 'Bangalore', 'Blr Commercial', 'Mysore'],
+    'CHN': ['CHN', 'Chennai', 'CHN Commercial'],
+    'HYD': ['HYD', 'Hyderabad', 'Hyd Commercial'],
+    'NCR': ['NCR - Gurgaon', 'NCR - Noida', 'NCR - Faridabad', 'NCR - Delhi', 'NCR - Ghaziabad', 'NCR Commercial', 'NCR- Gurugram'],
+    'Pune': ['Pune', 'Pune Commercial']
+};
+const cityFilterOptions = ['All', ...Object.keys(cityGroups)];
+
+
 const stageTargets: Record<Task, number> = {
     'Recce': 20,
     'TDDM': 15,
@@ -63,8 +72,10 @@ const FunnelAnalysis = ({ journeys, cityFilter, monthFilter }: { journeys: Custo
 
     const dateRange = getDateRangeForFilter(monthFilter);
     const filteredJourneys = journeys.filter(journey => {
-        const cityFilterMatch = cityFilter === 'All' || journey.city === cityFilter;
-        // A journey matches if an event is in range OR if it has no events and its creation is in range.
+        let cityFilterMatch = true;
+        if (cityFilter !== 'All') {
+            cityFilterMatch = cityGroups[cityFilter]?.includes(journey.city) ?? false;
+        }
         const monthFilterMatch = journey.history.length > 0
             ? journey.history.some(event => isWithinInterval(new Date(event.timestamp), dateRange))
             : journey.createdAt ? isWithinInterval(new Date(journey.createdAt), dateRange) : false;
@@ -238,10 +249,13 @@ export default function Journey360Page() {
   
   const filteredJourneys = journeys.filter(journey => {
       const crnFilterMatch = crnSearch.trim() === '' || journey.crn.toLowerCase().includes(crnSearch.toLowerCase().trim());
-      const cityFilterMatch = cityFilter === 'All' || journey.city === cityFilter;
+      
+      let cityFilterMatch = true;
+      if (cityFilter !== 'All') {
+          cityFilterMatch = cityGroups[cityFilter]?.includes(journey.city) ?? false;
+      }
 
       const dateRange = getDateRangeForFilter(monthFilter);
-      // A journey matches if an event is in range OR if it has no events and its creation is in range.
       const monthFilterMatch = journey.history.length > 0
           ? journey.history.some(event => isWithinInterval(new Date(event.timestamp), dateRange))
           : journey.createdAt ? isWithinInterval(new Date(journey.createdAt), dateRange) : false;
@@ -291,7 +305,10 @@ export default function Journey360Page() {
   
   const getDashboardData = () => {
       const dateRange = getDateRangeForFilter(monthFilter);
-      const journeysInScope = (cityFilter === 'All' ? journeys : journeys.filter(j => j.city === cityFilter));
+      const journeysInScope = journeys.filter(j => {
+          if (cityFilter === 'All') return true;
+          return cityGroups[cityFilter]?.includes(j.city) ?? false;
+      });
       
       const journeysToCount = journeysInScope.filter(j => {
           return j.history.length > 0
@@ -310,7 +327,6 @@ export default function Journey360Page() {
                   counts[j.currentStage.task]++;
               }
           } else {
-            // For closed journeys, count them in the 'Closure' stage for dashboard purposes
             counts['Closure']++;
           }
           if (j.quotedGmv && j.quotedGmv > 0) {
@@ -338,25 +354,21 @@ export default function Journey360Page() {
   const getTaskGmvHistory = (history: StageEvent[]): TaskGmvHistoryItem[] => {
     const historyItems: TaskGmvHistoryItem[] = [];
 
-    // Recce
     const lastRecceEvent = history
         .filter(e => e.stage.task === 'Recce' && 'expectedGmv' in e)
         .sort((a,b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())[0] as RecceFormSubmissionData | undefined;
     historyItems.push({ task: 'Recce', gmv: lastRecceEvent?.expectedGmv ?? null, date: lastRecceEvent?.timestamp ?? null });
 
-    // TDDM
     const lastTddmEvent = history
         .filter(e => e.stage.task === 'TDDM' && 'expectedGmv' in e)
         .sort((a,b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())[0] as TDDMInitialMeetingData | undefined;
     historyItems.push({ task: 'TDDM', gmv: lastTddmEvent?.expectedGmv ?? null, date: lastTddmEvent?.timestamp ?? null });
 
-    // Advance Meeting
     const lastAdvanceEvent = history
         .filter(e => e.stage.task === 'Advance Meeting' && 'expectedGmv' in e)
         .sort((a,b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())[0] as (NegotiationData | SiteVisitData | AgreementDiscussionData | AdvanceMeetingFollowUpData) | undefined;
     historyItems.push({ task: 'Advance Meeting', gmv: lastAdvanceEvent?.expectedGmv ?? null, date: lastAdvanceEvent?.timestamp ?? null });
 
-    // Final
     const closureEvent = history.find(e => e.stage.subTask === 'Closure Meeting (BA Collection)') as ClosureMeetingData | undefined;
     historyItems.push({ task: 'Final', gmv: closureEvent?.finalGmv ?? null, date: closureEvent?.timestamp ?? null });
 
@@ -459,10 +471,9 @@ export default function Journey360Page() {
                                 <SelectValue placeholder="Select City" />
                             </SelectTrigger>
                             <SelectContent>
-                                <SelectItem value="All">All Cities</SelectItem>
-                                {areCities.map(city => (
+                                {cityFilterOptions.map(city => (
                                     <SelectItem key={city} value={city}>
-                                        {city}
+                                        {city === 'All' ? 'All Cities' : city}
                                     </SelectItem>
                                 ))}
                             </SelectContent>
@@ -657,6 +668,8 @@ export default function Journey360Page() {
     </Dialog>
   );
 }
+
+    
 
     
 
