@@ -460,7 +460,9 @@ export default function Journey360Page() {
                             <SelectContent>
                                 <SelectItem value="All">All Cities</SelectItem>
                                 {areCities.map(city => (
-                                    <SelectItem key={city} value={city}>{city}</SelectItem>
+                                    <SelectItem key={city} value={city}>
+                                        {city === 'BLR' ? 'Blr Commercial' : city}
+                                    </SelectItem>
                                 ))}
                             </SelectContent>
                         </Select>
