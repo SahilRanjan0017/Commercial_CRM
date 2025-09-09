@@ -32,26 +32,41 @@ const monthFilterOptions = [
     }))
 ];
 
-const stageTargets: Record<Task, number> = {
-    'Recce': 20,
-    'TDDM': 15,
-    'Advance Meeting': 10,
-    'Closure': 5,
+const baseFirstMeetingTarget = 150;
+const getCascadingTargets = (firstMeetingTarget: number) => {
+    const qualifyingMeetingTarget = firstMeetingTarget * 0.8;
+    const recceTarget = qualifyingMeetingTarget * 0.8;
+    const tddmTarget = recceTarget * 0.7;
+    const advanceMeetingTarget = tddmTarget * 0.4;
+    const closureTarget = advanceMeetingTarget * 0.5;
+    return {
+        'FirstMeeting': firstMeetingTarget,
+        'QualifyingMeeting': qualifyingMeetingTarget,
+        'Recce': recceTarget,
+        'TDDM': tddmTarget,
+        'Advance Meeting': advanceMeetingTarget,
+        'Closure': closureTarget,
+    };
 };
-const targetMeetings = 40;
+
+const cityFirstMeetingTargets: Record<string, number> = {
+    'BLR': 40, 'CHN': 20, 'HYD': 40, 'NCR': 30, 'Pune': 20
+};
+const cityTargets = Object.entries(cityFirstMeetingTargets).reduce((acc, [city, firstMeetingTarget]) => {
+    acc[city] = getCascadingTargets(firstMeetingTarget);
+    return acc;
+}, {} as Record<string, ReturnType<typeof getCascadingTargets>>);
 
 const cityGmvTargets: Record<string, number> = {
-    'BLR': 15_00_00_000,
-    'CHN': 5_00_00_000,
-    'HYD': 15_00_00_000,
-    'NCR': 10_00_00_000,
-    'Pune': 5_00_00_000,
+    'BLR': 15_00_00_000, 'CHN': 5_00_00_000, 'HYD': 15_00_00_000,
+    'NCR': 10_00_00_000, 'Pune': 5_00_00_000,
 };
 const totalTargetGmv = Object.values(cityGmvTargets).reduce((a, b) => a + b, 0);
 
 interface CityPerformanceData {
     city: string;
     firstMeetings: { achieved: number; target: number; mtdt: number; tva: number };
+    qualifyingMeetings: { achieved: number; target: number; mtdt: number; tva: number };
     recce: { achieved: number; target: number; mtdt: number; tva: number };
     tddm: { achieved: number; target: number; mtdt: number; tva: number };
     advanceMeeting: { achieved: number; target: number; mtdt: number; tva: number };
@@ -91,9 +106,7 @@ export default function OverallViewPage() {
     const calculatePerformanceData = () => {
         const getDateRangeForFilter = (filter: string): { start: Date; end: Date } => {
             const now = new Date();
-            if (filter === 'MTD') {
-                return { start: startOfMonth(now), end: endOfToday() };
-            }
+            if (filter === 'MTD') return { start: startOfMonth(now), end: endOfToday() };
             const monthOffset = parseInt(filter.replace('M-', ''), 10);
             const targetMonth = subMonths(now, monthOffset);
             return { start: startOfMonth(targetMonth), end: endOfMonth(targetMonth) };
@@ -103,36 +116,44 @@ export default function OverallViewPage() {
         const monthProgressRatio = monthFilter.startsWith('M-') ? 1 : (getDate(today) / getDaysInMonth(today));
 
         const data: CityPerformanceData[] = cities.map(city => {
-            const cityJourneys = journeys.filter(j => 
-                (cityGroups[city]?.includes(j.city) ?? false) &&
-                (j.history.length > 0
-                    ? j.history.some(e => isWithinInterval(new Date(e.timestamp), dateRange))
-                    : j.createdAt ? isWithinInterval(new Date(j.createdAt), dateRange) : false)
-            );
-
-            let firstMeetingCount = 0;
-            const stageCounts: Record<Task, number> = { 'Recce': 0, 'TDDM': 0, 'Advance Meeting': 0, 'Closure': 0 };
+            const cityJourneys = journeys.filter(j => (cityGroups[city]?.includes(j.city) ?? false));
+            
+            const achievedCounts: Record<Task | 'FirstMeeting' | 'QualifyingMeeting', number> = {
+                'FirstMeeting': 0, 'QualifyingMeeting': 0, 'Recce': 0, 'TDDM': 0, 'Advance Meeting': 0, 'Closure': 0
+            };
+            const countedCrns = Object.keys(achievedCounts).reduce((acc, k) => ({ ...acc, [k]: new Set<string>() }), {} as Record<string, Set<string>>);
             let quotedGmv = 0;
             let finalGmv = 0;
 
             cityJourneys.forEach(j => {
-                if (j.history.some(e => e.stage.subTask === 'TDDM Initial Meeting' && isWithinInterval(new Date(e.timestamp), dateRange))) {
-                    firstMeetingCount++;
-                }
-                if (!j.isClosed) {
-                    if (j.currentStage.task) {
-                        stageCounts[j.currentStage.task]++;
+                let hasQuotedGmvInPeriod = false;
+                j.history.forEach(event => {
+                    if (isWithinInterval(new Date(event.timestamp), dateRange)) {
+                        const { task, subTask } = event.stage;
+                        if (!countedCrns[task].has(j.crn)) {
+                            achievedCounts[task]++;
+                            countedCrns[task].add(j.crn);
+                        }
+                        if (subTask === 'TDDM Initial Meeting') {
+                            if (!countedCrns.FirstMeeting.has(j.crn)) {
+                                achievedCounts.FirstMeeting++;
+                                countedCrns.FirstMeeting.add(j.crn);
+                            }
+                            if (!countedCrns.QualifyingMeeting.has(j.crn)) {
+                                achievedCounts.QualifyingMeeting++;
+                                countedCrns.QualifyingMeeting.add(j.crn);
+                            }
+                        }
+                        if ('expectedGmv' in event && event.expectedGmv && event.expectedGmv > 0) hasQuotedGmvInPeriod = true;
+                        if (task === 'Closure' && 'finalGmv' in event && event.finalGmv && event.finalGmv > 0) finalGmv += event.finalGmv;
                     }
-                } else {
-                    stageCounts['Closure']++;
-                }
-                if (j.quotedGmv && j.quotedGmv > 0) quotedGmv += j.quotedGmv;
-                if (j.isClosed && j.finalGmv && j.finalGmv > 0) finalGmv += j.finalGmv;
+                });
+                if (hasQuotedGmvInPeriod && j.quotedGmv && j.quotedGmv > 0) quotedGmv += j.quotedGmv;
             });
             
+            const targets = cityTargets[city];
             const calcMetrics = (achieved: number, target: number) => ({
-                achieved,
-                target,
+                achieved, target,
                 mtdt: parseFloat((target * monthProgressRatio).toFixed(2)),
                 tva: target > 0 ? parseFloat(((achieved / target) * 100).toFixed(2)) : 0,
             });
@@ -141,15 +162,14 @@ export default function OverallViewPage() {
 
             return {
                 city,
-                firstMeetings: calcMetrics(firstMeetingCount, targetMeetings),
-                recce: calcMetrics(stageCounts['Recce'], stageTargets['Recce']),
-                tddm: calcMetrics(stageCounts['TDDM'], stageTargets['TDDM']),
-                advanceMeeting: calcMetrics(stageCounts['Advance Meeting'], stageTargets['Advance Meeting']),
-                closure: calcMetrics(stageCounts['Closure'], stageTargets['Closure']),
+                firstMeetings: calcMetrics(achievedCounts.FirstMeeting, targets.FirstMeeting),
+                qualifyingMeetings: calcMetrics(achievedCounts.QualifyingMeeting, targets.QualifyingMeeting),
+                recce: calcMetrics(achievedCounts['Recce'], targets.Recce),
+                tddm: calcMetrics(achievedCounts['TDDM'], targets.TDDM),
+                advanceMeeting: calcMetrics(achievedCounts['Advance Meeting'], targets['Advance Meeting']),
+                closure: calcMetrics(achievedCounts['Closure'], targets.Closure),
                 gmv: {
-                    quoted: quotedGmv,
-                    final: finalGmv,
-                    target: targetGmv,
+                    quoted: quotedGmv, final: finalGmv, target: targetGmv,
                     tva: targetGmv > 0 ? parseFloat(((quotedGmv / targetGmv) * 100).toFixed(2)) : 0,
                 },
             };
@@ -160,48 +180,42 @@ export default function OverallViewPage() {
     const grandTotal = useMemo(() => {
         if (!performanceData || performanceData.length === 0) return null;
 
-        const totals: Omit<CityPerformanceData, 'city'> & { count: number } = {
+        const totals: Omit<CityPerformanceData, 'city'> = {
             firstMeetings: { achieved: 0, target: 0, mtdt: 0, tva: 0 },
+            qualifyingMeetings: { achieved: 0, target: 0, mtdt: 0, tva: 0 },
             recce: { achieved: 0, target: 0, mtdt: 0, tva: 0 },
             tddm: { achieved: 0, target: 0, mtdt: 0, tva: 0 },
             advanceMeeting: { achieved: 0, target: 0, mtdt: 0, tva: 0 },
             closure: { achieved: 0, target: 0, mtdt: 0, tva: 0 },
             gmv: { quoted: 0, final: 0, target: 0, tva: 0 },
-            count: 0,
         };
 
         performanceData.forEach(cityData => {
             (Object.keys(totals) as Array<keyof typeof totals>).forEach(key => {
+                const metric = totals[key as keyof typeof totals];
+                const cityMetric = cityData[key as keyof typeof cityData];
+                metric.achieved += cityMetric.achieved;
+                metric.target += cityMetric.target;
+                metric.mtdt += cityMetric.mtdt;
                 if (key === 'gmv') {
-                    totals.gmv.quoted += cityData.gmv.quoted;
-                    totals.gmv.final += cityData.gmv.final;
-                    totals.gmv.target += cityData.gmv.target;
-                } else if (key !== 'count') {
-                    const metric = cityData[key as keyof Omit<CityPerformanceData, 'city' | 'gmv'>];
-                    totals[key as keyof Omit<CityPerformanceData, 'city' | 'gmv'>].achieved += metric.achieved;
-                    totals[key as keyof Omit<CityPerformanceData, 'city' | 'gmv'>].target += metric.target;
-                    totals[key as keyof Omit<CityPerformanceData, 'city' | 'gmv'>].mtdt += metric.mtdt;
+                   (metric as any).quoted += (cityMetric as any).quoted;
+                   (metric as any).final += (cityMetric as any).final;
                 }
             });
-            totals.count++;
         });
         
-        // Calculate final TVA percentages based on totals
         (Object.keys(totals) as Array<keyof typeof totals>).forEach(key => {
-             if (key !== 'count') {
-                const metric = totals[key as keyof Omit<typeof totals, 'count'>];
-                if (metric.target > 0) {
-                    if (key === 'gmv') {
-                        metric.tva = (metric.quoted / metric.target) * 100;
-                    } else {
-                         metric.tva = (metric.achieved / metric.target) * 100;
-                    }
-                } else {
-                    metric.tva = 0;
-                }
+             const metric = totals[key as keyof typeof totals];
+             if (metric.target > 0) {
+                metric.tva = (metric.achieved / metric.target) * 100;
+             } else {
+                metric.tva = 0;
              }
         });
-
+        
+        if (totals.gmv.target > 0) {
+            totals.gmv.tva = (totals.gmv.quoted / totals.gmv.target) * 100;
+        }
 
         return totals;
     }, [performanceData]);
@@ -212,7 +226,7 @@ export default function OverallViewPage() {
         return `₹${value.toLocaleString('en-IN')}`;
     };
 
-    const metricGroups = ['First Meetings', 'Recce', 'TDDM', 'Advance Meeting', 'Closure', 'GMV'];
+    const metricGroups = ['First Meetings', 'Qualifying Meetings', 'Recce', 'TDDM', 'Advance Meeting', 'Closure', 'GMV'];
 
     return (
         <div className="min-h-screen w-full bg-background text-foreground flex flex-col p-4 sm:p-6 lg:p-8 gap-8">
@@ -283,7 +297,7 @@ export default function OverallViewPage() {
                                     <TableRow>
                                         <TableHead className="sticky left-0 bg-background z-10 border-r">City</TableHead>
                                         {metricGroups.map((group, i) => (
-                                            <TableHead key={group} colSpan={4} className={cn("text-center", i < metricGroups.length - 1 && "border-r")}>
+                                            <TableHead key={group} colSpan={group === 'GMV' ? 4 : 4} className={cn("text-center", i < metricGroups.length - 1 && "border-r")}>
                                                 {group}
                                             </TableHead>
                                         ))}
@@ -306,27 +320,32 @@ export default function OverallViewPage() {
                                             <TableCell className="font-medium sticky left-0 bg-background z-10 border-r">{data.city}</TableCell>
                                             
                                             <TableCell className="text-center">{data.firstMeetings.achieved}</TableCell>
-                                            <TableCell className="text-center">{data.firstMeetings.target}</TableCell>
+                                            <TableCell className="text-center">{data.firstMeetings.target.toFixed(0)}</TableCell>
                                             <TableCell className="text-center">{data.firstMeetings.mtdt.toFixed(0)}</TableCell>
                                             <TableCell className="text-center border-r">{data.firstMeetings.tva.toFixed(2)}%</TableCell>
+                                            
+                                            <TableCell className="text-center">{data.qualifyingMeetings.achieved}</TableCell>
+                                            <TableCell className="text-center">{data.qualifyingMeetings.target.toFixed(0)}</TableCell>
+                                            <TableCell className="text-center">{data.qualifyingMeetings.mtdt.toFixed(0)}</TableCell>
+                                            <TableCell className="text-center border-r">{data.qualifyingMeetings.tva.toFixed(2)}%</TableCell>
 
                                             <TableCell className="text-center">{data.recce.achieved}</TableCell>
-                                            <TableCell className="text-center">{data.recce.target}</TableCell>
+                                            <TableCell className="text-center">{data.recce.target.toFixed(0)}</TableCell>
                                             <TableCell className="text-center">{data.recce.mtdt.toFixed(0)}</TableCell>
                                             <TableCell className="text-center border-r">{data.recce.tva.toFixed(2)}%</TableCell>
 
                                             <TableCell className="text-center">{data.tddm.achieved}</TableCell>
-                                            <TableCell className="text-center">{data.tddm.target}</TableCell>
+                                            <TableCell className="text-center">{data.tddm.target.toFixed(0)}</TableCell>
                                             <TableCell className="text-center">{data.tddm.mtdt.toFixed(0)}</TableCell>
                                             <TableCell className="text-center border-r">{data.tddm.tva.toFixed(2)}%</TableCell>
 
                                             <TableCell className="text-center">{data.advanceMeeting.achieved}</TableCell>
-                                            <TableCell className="text-center">{data.advanceMeeting.target}</TableCell>
+                                            <TableCell className="text-center">{data.advanceMeeting.target.toFixed(0)}</TableCell>
                                             <TableCell className="text-center">{data.advanceMeeting.mtdt.toFixed(0)}</TableCell>
                                             <TableCell className="text-center border-r">{data.advanceMeeting.tva.toFixed(2)}%</TableCell>
                                             
                                             <TableCell className="text-center">{data.closure.achieved}</TableCell>
-                                            <TableCell className="text-center">{data.closure.target}</TableCell>
+                                            <TableCell className="text-center">{data.closure.target.toFixed(0)}</TableCell>
                                             <TableCell className="text-center">{data.closure.mtdt.toFixed(0)}</TableCell>
                                             <TableCell className="text-center border-r">{data.closure.tva.toFixed(2)}%</TableCell>
 
@@ -343,27 +362,32 @@ export default function OverallViewPage() {
                                             <TableCell className="sticky left-0 bg-muted z-10 border-r">Grand Total</TableCell>
                                             
                                             <TableCell className="text-center">{grandTotal.firstMeetings.achieved}</TableCell>
-                                            <TableCell className="text-center">{grandTotal.firstMeetings.target}</TableCell>
+                                            <TableCell className="text-center">{grandTotal.firstMeetings.target.toFixed(0)}</TableCell>
                                             <TableCell className="text-center">{grandTotal.firstMeetings.mtdt.toFixed(0)}</TableCell>
                                             <TableCell className="text-center border-r">{grandTotal.firstMeetings.tva.toFixed(2)}%</TableCell>
+                                            
+                                            <TableCell className="text-center">{grandTotal.qualifyingMeetings.achieved}</TableCell>
+                                            <TableCell className="text-center">{grandTotal.qualifyingMeetings.target.toFixed(0)}</TableCell>
+                                            <TableCell className="text-center">{grandTotal.qualifyingMeetings.mtdt.toFixed(0)}</TableCell>
+                                            <TableCell className="text-center border-r">{grandTotal.qualifyingMeetings.tva.toFixed(2)}%</TableCell>
 
                                             <TableCell className="text-center">{grandTotal.recce.achieved}</TableCell>
-                                            <TableCell className="text-center">{grandTotal.recce.target}</TableCell>
+                                            <TableCell className="text-center">{grandTotal.recce.target.toFixed(0)}</TableCell>
                                             <TableCell className="text-center">{grandTotal.recce.mtdt.toFixed(0)}</TableCell>
                                             <TableCell className="text-center border-r">{grandTotal.recce.tva.toFixed(2)}%</TableCell>
 
                                             <TableCell className="text-center">{grandTotal.tddm.achieved}</TableCell>
-                                            <TableCell className="text-center">{grandTotal.tddm.target}</TableCell>
+                                            <TableCell className="text-center">{grandTotal.tddm.target.toFixed(0)}</TableCell>
                                             <TableCell className="text-center">{grandTotal.tddm.mtdt.toFixed(0)}</TableCell>
                                             <TableCell className="text-center border-r">{grandTotal.tddm.tva.toFixed(2)}%</TableCell>
 
                                             <TableCell className="text-center">{grandTotal.advanceMeeting.achieved}</TableCell>
-                                            <TableCell className="text-center">{grandTotal.advanceMeeting.target}</TableCell>
+                                            <TableCell className="text-center">{grandTotal.advanceMeeting.target.toFixed(0)}</TableCell>
                                             <TableCell className="text-center">{grandTotal.advanceMeeting.mtdt.toFixed(0)}</TableCell>
                                             <TableCell className="text-center border-r">{grandTotal.advanceMeeting.tva.toFixed(2)}%</TableCell>
                                             
                                             <TableCell className="text-center">{grandTotal.closure.achieved}</TableCell>
-                                            <TableCell className="text-center">{grandTotal.closure.target}</TableCell>
+                                            <TableCell className="text-center">{grandTotal.closure.target.toFixed(0)}</TableCell>
                                             <TableCell className="text-center">{grandTotal.closure.mtdt.toFixed(0)}</TableCell>
                                             <TableCell className="text-center border-r">{grandTotal.closure.tva.toFixed(2)}%</TableCell>
 
@@ -382,6 +406,3 @@ export default function OverallViewPage() {
         </div>
     );
 }
-
-    
-    

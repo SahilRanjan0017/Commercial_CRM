@@ -17,16 +17,14 @@ import Papa from 'papaparse';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogTrigger } from '@/components/ui/dialog';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { HorizontalJourneyView } from '@/components/horizontal-journey-view';
-import { FunnelChart } from '@/components/funnel-chart';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { supabase } from '@/lib/supabase';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { Separator } from '@/components/ui/separator';
 import { cn } from '@/lib/utils';
 import { PasswordDialog } from '@/components/password-dialog';
 import { subMonths, startOfMonth, endOfMonth, startOfToday, endOfToday, isWithinInterval, getDate, getDaysInMonth } from 'date-fns';
 
-type JourneyFilter = Task | 'All' | 'QuotedGMV' | 'FinalGMV' | 'FirstMeeting';
+type JourneyFilter = Task | 'All' | 'QuotedGMV' | 'FinalGMV' | 'FirstMeeting' | 'QualifyingMeeting';
 
 interface TaskGmvHistoryItem {
   task: Task | 'Final';
@@ -51,13 +49,23 @@ const cityGroups: Record<string, string[]> = {
 };
 const cityFilterOptions = ['All', ...Object.keys(cityGroups)];
 
-
-const stageTargets: Record<Task, number> = {
-    'Recce': 20,
-    'TDDM': 15,
-    'Advance Meeting': 10,
-    'Closure': 5,
+const baseFirstMeetingTarget = 150;
+const getCascadingTargets = (firstMeetingTarget: number) => {
+    const qualifyingMeetingTarget = firstMeetingTarget * 0.8;
+    const recceTarget = qualifyingMeetingTarget * 0.8;
+    const tddmTarget = recceTarget * 0.7;
+    const advanceMeetingTarget = tddmTarget * 0.4;
+    const closureTarget = advanceMeetingTarget * 0.5;
+    return {
+        'FirstMeeting': firstMeetingTarget,
+        'QualifyingMeeting': qualifyingMeetingTarget,
+        'Recce': recceTarget,
+        'TDDM': tddmTarget,
+        'Advance Meeting': advanceMeetingTarget,
+        'Closure': closureTarget,
+    };
 };
+const allCitiesTargets = getCascadingTargets(baseFirstMeetingTarget);
 
 const cityGmvTargets: Record<string, number> = {
     'BLR': 15_00_00_000,
@@ -68,7 +76,6 @@ const cityGmvTargets: Record<string, number> = {
 };
 const totalTargetGmv = Object.values(cityGmvTargets).reduce((a, b) => a + b, 0);
 
-const targetMeetings = 40;
 
 const FunnelAnalysis = ({ journeys, cityFilter, monthFilter }: { journeys: CustomerJourney[], cityFilter: string, monthFilter: string }) => {
     const getDateRangeForFilter = (filter: string): { start: Date; end: Date } => {
@@ -260,33 +267,41 @@ export default function Journey360Page() {
   
   const filteredJourneys = journeys.filter(journey => {
     const crnFilterMatch = crnSearch.trim() === '' || journey.crn.toLowerCase().includes(crnSearch.toLowerCase().trim());
-
     const cityFilterMatch = cityFilter === 'All' || (cityGroups[cityFilter]?.includes(journey.city) ?? false);
-
     const dateRange = getDateRangeForFilter(monthFilter);
 
-    const monthFilterMatch = journey.history.length > 0
-        ? journey.history.some(event => isWithinInterval(new Date(event.timestamp), dateRange))
-        : (journey.createdAt && isWithinInterval(new Date(journey.createdAt), dateRange));
-    
-    if (!monthFilterMatch && activeFilter !== 'All') return false;
+    const hasEventInPeriod = (task: Task | 'FirstMeeting' | 'QualifyingMeeting') => {
+        return journey.history.some(event => {
+            const eventDate = new Date(event.timestamp);
+            if (!isWithinInterval(eventDate, dateRange)) return false;
 
-    let statusFilterMatch = true;
+            if (task === 'FirstMeeting' || task === 'QualifyingMeeting') {
+                return event.stage.subTask === 'TDDM Initial Meeting';
+            }
+            return event.stage.task === task;
+        });
+    };
+
     if (activeFilter === 'All') {
-        statusFilterMatch = true;
-    } else if (activeFilter === 'QuotedGMV') {
-        statusFilterMatch = !journey.isClosed && typeof journey.quotedGmv === 'number' && journey.quotedGmv >= 1 &&
-            journey.history.some(e => isWithinInterval(new Date(e.timestamp), dateRange) && 'expectedGmv' in e && e.expectedGmv > 0);
-    } else if (activeFilter === 'FinalGMV') {
-        statusFilterMatch = journey.isClosed && typeof journey.finalGmv === 'number' && journey.finalGmv >= 1 &&
-            journey.history.some(e => e.stage.task === 'Closure' && isWithinInterval(new Date(e.timestamp), dateRange));
-    } else if (activeFilter === 'FirstMeeting') {
-        statusFilterMatch = journey.history.some(e => e.stage.subTask === 'TDDM Initial Meeting' && isWithinInterval(new Date(e.timestamp), dateRange));
-    } else if (tasks.includes(activeFilter as Task)) {
-        statusFilterMatch = journey.history.some(e => e.stage.task === activeFilter && isWithinInterval(new Date(e.timestamp), dateRange));
+        const monthFilterMatch = journey.history.length > 0
+            ? journey.history.some(event => isWithinInterval(new Date(event.timestamp), dateRange))
+            : (journey.createdAt && isWithinInterval(new Date(journey.createdAt), dateRange));
+        return crnFilterMatch && cityFilterMatch && monthFilterMatch;
     }
 
-    return statusFilterMatch && crnFilterMatch && cityFilterMatch;
+    if (activeFilter === 'QuotedGMV') {
+        const hasQuotedGmvInPeriod = !journey.isClosed && typeof journey.quotedGmv === 'number' && journey.quotedGmv >= 1 &&
+            journey.history.some(e => isWithinInterval(new Date(e.timestamp), dateRange) && 'expectedGmv' in e && e.expectedGmv > 0);
+        return crnFilterMatch && cityFilterMatch && hasQuotedGmvInPeriod;
+    }
+
+    if (activeFilter === 'FinalGMV') {
+        const hasFinalGmvInPeriod = journey.isClosed && typeof journey.finalGmv === 'number' && journey.finalGmv >= 1 &&
+            journey.history.some(e => e.stage.task === 'Closure' && isWithinInterval(new Date(e.timestamp), dateRange));
+        return crnFilterMatch && cityFilterMatch && hasFinalGmvInPeriod;
+    }
+
+    return crnFilterMatch && cityFilterMatch && hasEventInPeriod(activeFilter);
 });
 
   const downloadCSV = () => {
@@ -318,68 +333,61 @@ export default function Journey360Page() {
   
   const getDashboardData = () => {
       const dateRange = getDateRangeForFilter(monthFilter);
-      
-      const journeysInScope = journeys.filter(j => {
-          if (cityFilter === 'All') return true;
-          return cityGroups[cityFilter]?.includes(j.city) ?? false;
-      });
+      const journeysInScope = journeys.filter(j => cityFilter === 'All' || (cityGroups[cityFilter]?.includes(j.city) ?? false));
 
-      const counts = tasks.reduce((acc, task) => ({...acc, [task]: 0}), {} as Record<Task, number>);
+      const achievedCounts: Record<Task | 'FirstMeeting' | 'QualifyingMeeting', number> = {
+          'FirstMeeting': 0, 'QualifyingMeeting': 0, 'Recce': 0, 'TDDM': 0, 'Advance Meeting': 0, 'Closure': 0
+      };
+      
+      const countedCrnsForStage: Record<string, Set<string>> = {
+          'FirstMeeting': new Set(), 'QualifyingMeeting': new Set(), 'Recce': new Set(), 'TDDM': new Set(), 'Advance Meeting': new Set(), 'Closure': new Set()
+      };
+      
       let quotedGmv = 0;
       let finalGmv = 0;
-      let firstMeetingCount = 0;
-      
-      const countedCrnsForStage: Record<Task, Set<string>> = {
-          'Recce': new Set(),
-          'TDDM': new Set(),
-          'Advance Meeting': new Set(),
-          'Closure': new Set(),
-      };
-      const countedCrnsForFirstMeeting = new Set<string>();
 
       journeysInScope.forEach(j => {
           let hasQuotedGmvInPeriod = false;
 
           j.history.forEach(event => {
               if (isWithinInterval(new Date(event.timestamp), dateRange)) {
-                  // Count each stage only once per CRN within the period
-                  if (!countedCrnsForStage[event.stage.task].has(j.crn)) {
-                      counts[event.stage.task]++;
-                      countedCrnsForStage[event.stage.task].add(j.crn);
+                  const stageTask = event.stage.task;
+                  const stageSubTask = event.stage.subTask;
+
+                  if (!countedCrnsForStage[stageTask].has(j.crn)) {
+                      countedCrnsForStage[stageTask].add(j.crn);
+                      achievedCounts[stageTask]++;
                   }
 
-                  if (event.stage.subTask === 'TDDM Initial Meeting' && !countedCrnsForFirstMeeting.has(j.crn)) {
-                      firstMeetingCount++;
-                      countedCrnsForFirstMeeting.add(j.crn);
+                  if (stageSubTask === 'TDDM Initial Meeting') {
+                      if (!countedCrnsForStage.FirstMeeting.has(j.crn)) {
+                          countedCrnsForStage.FirstMeeting.add(j.crn);
+                          achievedCounts.FirstMeeting++;
+                      }
+                      // For now, Qualifying Meeting is the same as First Meeting
+                      if (!countedCrnsForStage.QualifyingMeeting.has(j.crn)) {
+                           countedCrnsForStage.QualifyingMeeting.add(j.crn);
+                           achievedCounts.QualifyingMeeting++;
+                      }
                   }
                   
-                  // Track GMV based on events in the date range
-                  if ('expectedGmv' in event && event.expectedGmv && event.expectedGmv > 0) {
-                      hasQuotedGmvInPeriod = true;
-                  }
-                  if (event.stage.task === 'Closure' && 'finalGmv' in event && event.finalGmv && event.finalGmv > 0) {
-                      finalGmv += event.finalGmv;
-                  }
+                  if ('expectedGmv' in event && event.expectedGmv && event.expectedGmv > 0) hasQuotedGmvInPeriod = true;
+                  if (stageTask === 'Closure' && 'finalGmv' in event && event.finalGmv && event.finalGmv > 0) finalGmv += event.finalGmv;
               }
           });
-
-          // Add the journey's quoted GMV if any of its relevant events occurred in the period
-          if (hasQuotedGmvInPeriod && j.quotedGmv && j.quotedGmv > 0) {
-              quotedGmv += j.quotedGmv;
-          }
+          
+          if (hasQuotedGmvInPeriod && j.quotedGmv && j.quotedGmv > 0) quotedGmv += j.quotedGmv;
       });
-      
-      const stageCounts = tasks.map(task => ({ stage: task, count: counts[task] }));
-      
+
       const today = new Date();
       const monthProgressRatio = monthFilter.startsWith('M-') ? 1 : (getDate(today) / getDaysInMonth(today));
 
       const targetGmv = cityFilter === 'All' ? totalTargetGmv : cityGmvTargets[cityFilter] || 0;
 
-      return { stageCounts, quotedGmv, finalGmv, firstMeetingCount, monthProgressRatio, targetGmv };
+      return { achievedCounts, quotedGmv, finalGmv, monthProgressRatio, targetGmv };
   }
   
-  const { stageCounts, quotedGmv, finalGmv, firstMeetingCount, monthProgressRatio, targetGmv } = getDashboardData();
+  const { achievedCounts, quotedGmv, finalGmv, monthProgressRatio, targetGmv } = getDashboardData();
   const isImage = (fileName: string) => /\.(jpe?g|png|gif|webp)$/i.test(fileName);
   
   const getTaskGmvHistory = (history: StageEvent[]): TaskGmvHistoryItem[] => {
@@ -525,8 +533,8 @@ export default function Journey360Page() {
                         </TooltipProvider>
                     </div>
                 </CardHeader>
-                <CardContent className="space-y-8">
-                     <div className="space-y-3">
+                <CardContent className="space-y-4">
+                     <div className="space-y-2">
                         <h4 className="text-md font-semibold text-center text-muted-foreground">GMV</h4>
                         <div className="grid grid-cols-3 gap-4">
                              <DashboardCard title="Target GMV" value={formatGmv(targetGmv)} />
@@ -534,22 +542,14 @@ export default function Journey360Page() {
                              <DashboardCard title="Final GMV" value={formatGmv(finalGmv)} onClick={() => setActiveFilter('FinalGMV')} isActive={activeFilter === 'FinalGMV'} />
                         </div>
                     </div>
-                    <div className="space-y-3">
-                        <h4 className="text-md font-semibold text-center text-muted-foreground">Meetings</h4>
-                        <div className="grid grid-cols-3 gap-4">
-                            <DashboardCard title="Target Meetings" value={targetMeetings} />
-                            <DashboardCard title="Achieved Meetings" value={firstMeetingCount} onClick={() => setActiveFilter('FirstMeeting')} isActive={activeFilter === 'FirstMeeting'} />
-                            <DashboardCard title="Prorated Meetings" value={(targetMeetings * monthProgressRatio).toFixed(0)} />
-                        </div>
-                    </div>
-
-                    {stageCounts.map(item => (
-                        <div key={item.stage} className="space-y-3">
-                            <h4 className="text-md font-semibold text-center text-muted-foreground">{item.stage}</h4>
+                    
+                    {[ 'FirstMeeting', 'QualifyingMeeting', 'Recce', 'TDDM', 'Advance Meeting', 'Closure'].map(stage => (
+                        <div key={stage} className="space-y-2">
+                            <h4 className="text-md font-semibold text-center text-muted-foreground">{stage.replace(/([A-Z])/g, ' $1').trim()}</h4>
                             <div className="grid grid-cols-3 gap-4">
-                                <DashboardCard title="Target" value={stageTargets[item.stage]} />
-                                <DashboardCard title="Achieved" value={item.count} onClick={() => setActiveFilter(item.stage)} isActive={activeFilter === item.stage} />
-                                <DashboardCard title="Prorated Target" value={(stageTargets[item.stage] * monthProgressRatio).toFixed(0)} />
+                                <DashboardCard title="Target" value={allCitiesTargets[stage as keyof typeof allCitiesTargets].toFixed(0)} />
+                                <DashboardCard title="Achieved" value={achievedCounts[stage as keyof typeof achievedCounts]} onClick={() => setActiveFilter(stage as JourneyFilter)} isActive={activeFilter === stage} />
+                                <DashboardCard title="Prorated Target" value={(allCitiesTargets[stage as keyof typeof allCitiesTargets] * monthProgressRatio).toFixed(0)} />
                             </div>
                         </div>
                     ))}
@@ -724,5 +724,3 @@ export default function Journey360Page() {
     </Dialog>
   );
 }
-
-    
