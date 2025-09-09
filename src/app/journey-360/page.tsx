@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useState, useEffect } from 'react';
@@ -26,7 +25,7 @@ import { Separator } from '@/components/ui/separator';
 import { cn } from '@/lib/utils';
 import { PasswordDialog } from '@/components/password-dialog';
 
-type JourneyFilter = Task | 'All' | 'QuotedGMV' | 'FinalGMV';
+type JourneyFilter = Task | 'All' | 'QuotedGMV' | 'FinalGMV' | 'FirstMeeting';
 
 interface TaskGmvHistoryItem {
   task: Task | 'Final';
@@ -104,6 +103,8 @@ export default function Journey360Page() {
           statusFilterMatch = !journey.isClosed && typeof journey.quotedGmv === 'number' && journey.quotedGmv >= 1;
       } else if (activeFilter === 'FinalGMV') {
           statusFilterMatch = journey.isClosed && typeof journey.finalGmv === 'number' && journey.finalGmv >= 1;
+      } else if (activeFilter === 'FirstMeeting') {
+          statusFilterMatch = journey.history.some(e => e.stage.subTask === 'TDDM Initial Meeting');
       } else {
           statusFilterMatch = journey.currentStage.task === activeFilter;
       }
@@ -144,6 +145,7 @@ export default function Journey360Page() {
       const counts = tasks.reduce((acc, task) => ({...acc, [task]: 0}), {} as Record<Task, number>);
       let quotedGmv = 0;
       let finalGmv = 0;
+      let firstMeetingCount = 0;
 
       journeysToCount.forEach(j => {
           if(!j.isClosed) {
@@ -157,13 +159,16 @@ export default function Journey360Page() {
           if (j.isClosed && j.finalGmv && j.finalGmv > 0) {
             finalGmv += j.finalGmv;
           }
+          if (j.history.some(e => e.stage.subTask === 'TDDM Initial Meeting')) {
+            firstMeetingCount++;
+          }
       });
       const stageCounts = tasks.map(task => ({ stage: task, count: counts[task] }));
 
-      return { stageCounts, quotedGmv, finalGmv };
+      return { stageCounts, quotedGmv, finalGmv, firstMeetingCount };
   }
   
-  const { stageCounts, quotedGmv, finalGmv } = getDashboardData();
+  const { stageCounts, quotedGmv, finalGmv, firstMeetingCount } = getDashboardData();
   const isImage = (fileName: string) => /\.(jpe?g|png|gif|webp)$/i.test(fileName);
   
   const getTaskGmvHistory = (history: StageEvent[]): TaskGmvHistoryItem[] => {
@@ -295,6 +300,16 @@ export default function Journey360Page() {
                      >
                         <p className="text-2xl font-bold">{formatGmv(finalGmv)}</p>
                         <p className="text-sm text-muted-foreground">Final GMV</p>
+                    </Card>
+                    <Card
+                      className={cn(
+                        "p-4 flex flex-col items-center justify-center cursor-pointer hover:bg-muted",
+                        activeFilter === 'FirstMeeting' && 'bg-muted ring-2 ring-primary'
+                      )}
+                      onClick={() => setActiveFilter('FirstMeeting')}
+                     >
+                        <p className="text-3xl font-bold">{firstMeetingCount}</p>
+                        <p className="text-sm text-muted-foreground">First Meeting</p>
                     </Card>
                     {stageCounts.map(item => (
                         <Card key={item.stage} className="p-4 flex flex-col items-center justify-center cursor-pointer hover:bg-muted" onClick={() => setActiveFilter(item.stage)}>

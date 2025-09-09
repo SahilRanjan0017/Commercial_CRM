@@ -1,10 +1,9 @@
-
 'use client';
 
 import { cn } from "@/lib/utils";
 import type { Task } from "@/types";
 
-type JourneyFilter = Task | 'All' | 'QuotedGMV' | 'FinalGMV';
+type JourneyFilter = Task | 'All' | 'QuotedGMV' | 'FinalGMV' | 'FirstMeeting';
 
 interface FunnelChartProps {
   data: {
