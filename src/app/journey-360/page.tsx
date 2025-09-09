@@ -355,7 +355,7 @@ export default function Journey360Page() {
                         </div>
                     </div>
                 </CardHeader>
-                <CardContent className="space-y-6">
+                <CardContent className="space-y-8">
                     <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                          <DashboardCard title="Quoted GMV" value={formatGmv(quotedGmv)} icon={IndianRupee} onClick={() => setActiveFilter('QuotedGMV')} isActive={activeFilter === 'QuotedGMV'} />
                          <DashboardCard title="Final GMV" value={formatGmv(finalGmv)} icon={IndianRupee} onClick={() => setActiveFilter('FinalGMV')} isActive={activeFilter === 'FinalGMV'} />
@@ -363,7 +363,7 @@ export default function Journey360Page() {
                     </div>
 
                     {stageCounts.map(item => (
-                        <div key={item.stage} className="space-y-2">
+                        <div key={item.stage} className="space-y-3">
                             <h4 className="text-md font-semibold text-center text-muted-foreground">{item.stage}</h4>
                             <div className="grid grid-cols-3 gap-4">
                                 <DashboardCard title="Target" value={stageTargets[item.stage]} icon={Target} />
@@ -542,3 +542,5 @@ export default function Journey360Page() {
     </Dialog>
   );
 }
+
+    
