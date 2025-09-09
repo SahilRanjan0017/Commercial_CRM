@@ -39,7 +39,14 @@ const stageTargets: Record<Task, number> = {
     'Closure': 5,
 };
 const targetMeetings = 40;
-const targetGmv = 5_00_00_000;
+
+const cityGmvTargets: Record<string, number> = {
+    'BLR': 15_00_00_000,
+    'CHN': 5_00_00_000,
+    'HYD': 15_00_00_000,
+    'NCR': 10_00_00_000,
+    'Pune': 5_00_00_000,
+};
 
 interface CityPerformanceData {
     city: string;
@@ -129,6 +136,8 @@ export default function OverallViewPage() {
                 tva: target > 0 ? parseFloat(((achieved / target) * 100).toFixed(2)) : 0,
             });
 
+            const targetGmv = cityGmvTargets[city] || 0;
+
             return {
                 city,
                 firstMeetings: calcMetrics(firstMeetingCount, targetMeetings),
@@ -150,13 +159,14 @@ export default function OverallViewPage() {
     const grandTotal = useMemo(() => {
         if (!performanceData || performanceData.length === 0) return null;
 
-        const totals = {
-            firstMeetings: { achieved: 0, target: 0, mtdt: 0, tva: 0, count: 0 },
-            recce: { achieved: 0, target: 0, mtdt: 0, tva: 0, count: 0 },
-            tddm: { achieved: 0, target: 0, mtdt: 0, tva: 0, count: 0 },
-            advanceMeeting: { achieved: 0, target: 0, mtdt: 0, tva: 0, count: 0 },
-            closure: { achieved: 0, target: 0, mtdt: 0, tva: 0, count: 0 },
-            gmv: { quoted: 0, final: 0, target: 0, tva: 0, count: 0 },
+        const totals: Omit<CityPerformanceData, 'city'> & { count: number } = {
+            firstMeetings: { achieved: 0, target: 0, mtdt: 0, tva: 0 },
+            recce: { achieved: 0, target: 0, mtdt: 0, tva: 0 },
+            tddm: { achieved: 0, target: 0, mtdt: 0, tva: 0 },
+            advanceMeeting: { achieved: 0, target: 0, mtdt: 0, tva: 0 },
+            closure: { achieved: 0, target: 0, mtdt: 0, tva: 0 },
+            gmv: { quoted: 0, final: 0, target: 0, tva: 0 },
+            count: 0,
         };
 
         performanceData.forEach(cityData => {
@@ -165,26 +175,32 @@ export default function OverallViewPage() {
                     totals.gmv.quoted += cityData.gmv.quoted;
                     totals.gmv.final += cityData.gmv.final;
                     totals.gmv.target += cityData.gmv.target;
-                    totals.gmv.count++;
-                } else {
-                    const metric = cityData[key];
-                    totals[key].achieved += metric.achieved;
-                    totals[key].target += metric.target;
-                    totals[key].mtdt += metric.mtdt;
-                    totals[key].tva += metric.tva;
-                    totals[key].count++;
+                } else if (key !== 'count') {
+                    const metric = cityData[key as keyof Omit<CityPerformanceData, 'city' | 'gmv'>];
+                    totals[key as keyof Omit<CityPerformanceData, 'city' | 'gmv'>].achieved += metric.achieved;
+                    totals[key as keyof Omit<CityPerformanceData, 'city' | 'gmv'>].target += metric.target;
+                    totals[key as keyof Omit<CityPerformanceData, 'city' | 'gmv'>].mtdt += metric.mtdt;
                 }
             });
+            totals.count++;
         });
         
-        // Calculate averages and final TVA
+        // Calculate final TVA percentages based on totals
         (Object.keys(totals) as Array<keyof typeof totals>).forEach(key => {
-            if (key === 'gmv') {
-                totals.gmv.tva = totals.gmv.target > 0 ? (totals.gmv.quoted / totals.gmv.target) * 100 : 0;
-            } else {
-                totals[key].tva = totals[key].count > 0 ? totals[key].tva / totals[key].count : 0;
-            }
+             if (key !== 'count') {
+                const metric = totals[key as keyof Omit<typeof totals, 'count'>];
+                if (metric.target > 0) {
+                    if (key === 'gmv') {
+                        metric.tva = (metric.quoted / metric.target) * 100;
+                    } else {
+                         metric.tva = (metric.achieved / metric.target) * 100;
+                    }
+                } else {
+                    metric.tva = 0;
+                }
+             }
         });
+
 
         return totals;
     }, [performanceData]);
@@ -358,3 +374,5 @@ export default function OverallViewPage() {
         </div>
     );
 }
+
+    

@@ -59,7 +59,15 @@ const stageTargets: Record<Task, number> = {
     'Closure': 5,
 };
 
-const targetGmv = 5_00_00_000;
+const cityGmvTargets: Record<string, number> = {
+    'BLR': 15_00_00_000,
+    'CHN': 5_00_00_000,
+    'HYD': 15_00_00_000,
+    'NCR': 10_00_00_000,
+    'Pune': 5_00_00_000,
+};
+const totalTargetGmv = Object.values(cityGmvTargets).reduce((a, b) => a + b, 0);
+
 const targetMeetings = 40;
 
 const FunnelAnalysis = ({ journeys, cityFilter, monthFilter }: { journeys: CustomerJourney[], cityFilter: string, monthFilter: string }) => {
@@ -347,11 +355,12 @@ export default function Journey360Page() {
       const today = new Date();
       const monthProgressRatio = monthFilter.startsWith('M-') ? 1 : (getDate(today) / getDaysInMonth(today));
 
+      const targetGmv = cityFilter === 'All' ? totalTargetGmv : cityGmvTargets[cityFilter] || 0;
 
-      return { stageCounts, quotedGmv, finalGmv, firstMeetingCount, monthProgressRatio };
+      return { stageCounts, quotedGmv, finalGmv, firstMeetingCount, monthProgressRatio, targetGmv };
   }
   
-  const { stageCounts, quotedGmv, finalGmv, firstMeetingCount, monthProgressRatio } = getDashboardData();
+  const { stageCounts, quotedGmv, finalGmv, firstMeetingCount, monthProgressRatio, targetGmv } = getDashboardData();
   const isImage = (fileName: string) => /\.(jpe?g|png|gif|webp)$/i.test(fileName);
   
   const getTaskGmvHistory = (history: StageEvent[]): TaskGmvHistoryItem[] => {
@@ -696,3 +705,5 @@ export default function Journey360Page() {
     </Dialog>
   );
 }
+
+    
