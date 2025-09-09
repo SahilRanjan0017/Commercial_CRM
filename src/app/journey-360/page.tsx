@@ -108,11 +108,11 @@ const FunnelAnalysis = ({ journeys, cityFilter, monthFilter }: { journeys: Custo
     
     const stageFlags = filteredJourneys.map(j => ({
         crn: j.crn,
-        has_first_meeting: j.history.some(e => e.stage.subTask === 'TDDM Initial Meeting') ? 1 : 0,
-        has_recce: j.history.some(e => e.stage.task === 'Recce') ? 1 : 0,
-        has_tddm: j.history.some(e => e.stage.task === 'TDDM') ? 1 : 0,
-        has_adv_meeting: j.history.some(e => e.stage.task === 'Advance Meeting') ? 1 : 0,
-        has_closure: j.history.some(e => e.stage.task === 'Closure') ? 1 : 0,
+        has_first_meeting: j.history.some(e => e.stage.subTask === 'TDDM Initial Meeting' && isWithinInterval(new Date(e.timestamp),dateRange)) ? 1 : 0,
+        has_recce: j.history.some(e => e.stage.task === 'Recce' && isWithinInterval(new Date(e.timestamp),dateRange)) ? 1 : 0,
+        has_tddm: j.history.some(e => e.stage.task === 'TDDM' && isWithinInterval(new Date(e.timestamp),dateRange)) ? 1 : 0,
+        has_adv_meeting: j.history.some(e => e.stage.task === 'Advance Meeting' && isWithinInterval(new Date(e.timestamp),dateRange)) ? 1 : 0,
+        has_closure: j.history.some(e => e.stage.task === 'Closure' && isWithinInterval(new Date(e.timestamp),dateRange)) ? 1 : 0,
     }));
 
     const agg = stageFlags.reduce((acc, flags) => {
@@ -269,7 +269,7 @@ export default function Journey360Page() {
         ? journey.history.some(event => isWithinInterval(new Date(event.timestamp), dateRange))
         : (journey.createdAt && isWithinInterval(new Date(journey.createdAt), dateRange));
     
-    if (!monthFilterMatch) return false;
+    if (!monthFilterMatch && activeFilter !== 'All') return false;
 
     let statusFilterMatch = true;
     if (activeFilter === 'All') {
@@ -335,6 +335,7 @@ export default function Journey360Page() {
           'Advance Meeting': new Set(),
           'Closure': new Set(),
       };
+      const countedCrnsForFirstMeeting = new Set<string>();
 
       journeysInScope.forEach(j => {
           let hasQuotedGmvInPeriod = false;
@@ -347,8 +348,9 @@ export default function Journey360Page() {
                       countedCrnsForStage[event.stage.task].add(j.crn);
                   }
 
-                  if (event.stage.subTask === 'TDDM Initial Meeting') {
+                  if (event.stage.subTask === 'TDDM Initial Meeting' && !countedCrnsForFirstMeeting.has(j.crn)) {
                       firstMeetingCount++;
+                      countedCrnsForFirstMeeting.add(j.crn);
                   }
                   
                   // Track GMV based on events in the date range
@@ -722,7 +724,5 @@ export default function Journey360Page() {
     </Dialog>
   );
 }
-
-    
 
     
