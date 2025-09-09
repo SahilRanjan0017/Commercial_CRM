@@ -223,12 +223,12 @@ export default function OverallViewPage() {
                                     <TableRow>
                                         <TableHead className="sticky left-0 bg-background z-10"></TableHead>
                                         {Array(6).fill(0).map((_, i) => (
-                                            <>
-                                                <TableHead key={`achieved-${i}`} className="text-center">Achieved</TableHead>
-                                                <TableHead key={`target-${i}`} className="text-center">Target</TableHead>
-                                                <TableHead key={`mtdt-${i}`} className="text-center">Prorated</TableHead>
-                                                <TableHead key={`tva-${i}`} className="text-center">TVA %</TableHead>
-                                            </>
+                                            <React.Fragment key={i}>
+                                                <TableHead className="text-center">Achieved</TableHead>
+                                                <TableHead className="text-center">Target</TableHead>
+                                                <TableHead className="text-center">Prorated</TableHead>
+                                                <TableHead className="text-center">TVA %</TableHead>
+                                            </React.Fragment>
                                         ))}
                                     </TableRow>
                                 </TableHeader>
