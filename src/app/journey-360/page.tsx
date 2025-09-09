@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useState, useEffect } from 'react';
@@ -8,7 +7,7 @@ import { Badge } from '@/components/ui/badge';
 import Link from 'next/link';
 import Image from 'next/image';
 import { Button } from '@/components/ui/button';
-import { HomeIcon, Loader2, Download, AreaChart, Search, BrainCircuit, User, Mail, Phone, Calculator, FolderOpen, FileImage, Building, IndianRupee, TrendingUp, Target, CheckCircle } from 'lucide-react';
+import { HomeIcon, Loader2, Download, AreaChart, Search, BrainCircuit, User, Mail, Phone, Calculator, FolderOpen, FileImage, Building, IndianRupee, TrendingUp, Target, CheckCircle, Percent, ArrowRight } from 'lucide-react';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import type { CustomerJourney, NegotiationData, Task, RecceFormSubmissionData, TDDMInitialMeetingData, ClosureMeetingData, StageEvent, SiteVisitData, AgreementDiscussionData, AdvanceMeetingFollowUpData } from '@/types';
 import { tasks } from '@/types';
@@ -49,6 +48,120 @@ const stageTargets: Record<Task, number> = {
     'Advance Meeting': 10,
     'Closure': 5,
 };
+
+const FunnelAnalysis = ({ journeys, cityFilter, monthFilter }: { journeys: CustomerJourney[], cityFilter: string, monthFilter: string }) => {
+    const getDateRangeForFilter = (filter: string): { start: Date; end: Date } => {
+        const now = new Date();
+        if (filter === 'MTD') {
+            return { start: startOfMonth(now), end: endOfToday() };
+        }
+        const monthOffset = parseInt(filter.replace('M-', ''), 10);
+        const targetMonth = subMonths(now, monthOffset);
+        return { start: startOfMonth(targetMonth), end: endOfMonth(targetMonth) };
+    };
+
+    const dateRange = getDateRangeForFilter(monthFilter);
+    const filteredJourneys = journeys.filter(journey => {
+        const cityFilterMatch = cityFilter === 'All' || journey.city === cityFilter;
+        const lastEventTimestamp = journey.history.length > 0 ? new Date(journey.history[journey.history.length - 1].timestamp) : new Date(0);
+        const monthFilterMatch = isWithinInterval(lastEventTimestamp, dateRange);
+        return cityFilterMatch && monthFilterMatch;
+    });
+    
+    if (filteredJourneys.length === 0) {
+        return (
+            <Card>
+                <CardHeader>
+                    <CardTitle>Funnel Analysis</CardTitle>
+                </CardHeader>
+                <CardContent>
+                    <p className="text-muted-foreground">No data for the selected filters.</p>
+                </CardContent>
+            </Card>
+        );
+    }
+    
+    const stageFlags = filteredJourneys.map(j => ({
+        crn: j.crn,
+        has_first_meeting: j.history.some(e => e.stage.subTask === 'TDDM Initial Meeting') ? 1 : 0,
+        has_recce: j.history.some(e => e.stage.task === 'Recce') ? 1 : 0,
+        has_tddm: j.history.some(e => e.stage.task === 'TDDM') ? 1 : 0,
+        has_adv_meeting: j.history.some(e => e.stage.task === 'Advance Meeting') ? 1 : 0,
+        has_closure: j.history.some(e => e.stage.task === 'Closure') ? 1 : 0,
+    }));
+
+    const agg = stageFlags.reduce((acc, flags) => {
+        acc.total_crn += 1;
+        acc.total_first_meeting += flags.has_first_meeting;
+        acc.total_recce += flags.has_recce;
+        acc.total_tddm += flags.has_tddm;
+        acc.total_adv_meeting += flags.has_adv_meeting;
+        acc.total_closure += flags.has_closure;
+        return acc;
+    }, { total_crn: 0, total_first_meeting: 0, total_recce: 0, total_tddm: 0, total_adv_meeting: 0, total_closure: 0 });
+
+    const total_meetings_count = agg.total_first_meeting + agg.total_recce + agg.total_tddm + agg.total_adv_meeting + agg.total_closure;
+    const pct_first_to_recce = agg.total_first_meeting > 0 ? (agg.total_recce / agg.total_first_meeting) * 100 : 0;
+    const pct_tddm = agg.total_crn > 0 ? (agg.total_tddm / agg.total_crn) * 100 : 0;
+    const pct_adv_meeting = agg.total_first_meeting > 0 ? (agg.total_adv_meeting / agg.total_first_meeting) * 100 : 0;
+    const pct_closure = agg.total_first_meeting > 0 ? (agg.total_closure / agg.total_first_meeting) * 100 : 0;
+    
+    const cnt_meeting_to_recce = stageFlags.filter(f => f.has_first_meeting && f.has_recce).length;
+    const cnt_recce_to_tddm = stageFlags.filter(f => f.has_recce && f.has_tddm).length;
+    const cnt_tddm_to_adv_meeting = stageFlags.filter(f => f.has_tddm && f.has_adv_meeting).length;
+    const cnt_adv_meeting_to_closure = stageFlags.filter(f => f.has_adv_meeting && f.has_closure).length;
+    
+    const AnalysisMetric = ({ value, label, isPercentage = false }: { value: string | number, label: string, isPercentage?: boolean }) => (
+         <div className="flex flex-col items-center justify-center p-4 rounded-lg bg-muted/50">
+            <div className="flex items-baseline gap-2">
+                <span className="text-3xl font-bold">{typeof value === 'number' ? value.toFixed(isPercentage ? 2 : 0) : value}</span>
+                {isPercentage && <Percent className="w-5 h-5 text-muted-foreground" />}
+            </div>
+            <p className="text-sm text-muted-foreground text-center mt-1">{label}</p>
+        </div>
+    );
+    
+    const ConversionMetric = ({ count, from, to }: { count: number, from: string, to: string }) => (
+        <div className="flex items-center justify-center gap-2 p-4 rounded-lg bg-muted/50">
+             <p className="font-semibold">{from}</p>
+             <div className="flex flex-col items-center">
+                <span className="text-lg font-bold">{count}</span>
+                <ArrowRight className="w-8 h-4 text-muted-foreground" />
+             </div>
+             <p className="font-semibold">{to}</p>
+        </div>
+    );
+
+    return (
+        <Card>
+            <CardHeader>
+                <CardTitle>Funnel Analysis</CardTitle>
+                <CardDescription>Conversion rates and counts for the selected period.</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-6">
+                <div>
+                     <h4 className="font-semibold text-lg mb-4 text-center">Conversion Percentages</h4>
+                     <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+                        <AnalysisMetric value={total_meetings_count} label="Total Meetings" />
+                        <AnalysisMetric value={pct_first_to_recce} label="% First Meeting to Recce" isPercentage />
+                        <AnalysisMetric value={pct_tddm} label="% TDDM" isPercentage />
+                        <AnalysisMetric value={pct_adv_meeting} label="% Advance Meeting" isPercentage />
+                        <AnalysisMetric value={pct_closure} label="% Closure" isPercentage />
+                    </div>
+                </div>
+                 <div>
+                     <h4 className="font-semibold text-lg mb-4 text-center">Stage-to-Stage Conversion Counts</h4>
+                     <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                        <ConversionMetric count={cnt_meeting_to_recce} from="Meeting" to="Recce" />
+                        <ConversionMetric count={cnt_recce_to_tddm} from="Recce" to="TDDM" />
+                        <ConversionMetric count={cnt_tddm_to_adv_meeting} from="TDDM" to="Adv. Meeting" />
+                        <ConversionMetric count={cnt_adv_meeting_to_closure} from="Adv. Meeting" to="Closure" />
+                    </div>
+                </div>
+            </CardContent>
+        </Card>
+    );
+}
 
 export default function Journey360Page() {
   const [journeys, setJourneys] = useState<CustomerJourney[]>([]);
@@ -365,6 +478,7 @@ export default function Journey360Page() {
                     ))}
                 </CardContent>
             </Card>
+            <FunnelAnalysis journeys={journeys} cityFilter={cityFilter} monthFilter={monthFilter} />
         </div>
         
         <div className="md:col-span-2 flex flex-col">
@@ -533,6 +647,8 @@ export default function Journey360Page() {
     </Dialog>
   );
 }
+
+    
 
     
 
