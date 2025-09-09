@@ -50,7 +50,7 @@ const getCascadingTargets = (firstMeetingTarget: number) => {
 };
 
 const cityFirstMeetingTargets: Record<string, number> = {
-    'BLR': 40, 'CHN': 20, 'HYD': 40, 'NCR': 30, 'Pune': 20
+    'BLR': 50, 'CHN': 15, 'HYD': 45, 'NCR': 30, 'Pune': 10
 };
 const cityTargets = Object.entries(cityFirstMeetingTargets).reduce((acc, [city, firstMeetingTarget]) => {
     acc[city] = getCascadingTargets(firstMeetingTarget);
@@ -124,6 +124,8 @@ export default function OverallViewPage() {
             const countedCrns = Object.keys(achievedCounts).reduce((acc, k) => ({ ...acc, [k]: new Set<string>() }), {} as Record<string, Set<string>>);
             let quotedGmv = 0;
             let finalGmv = 0;
+            
+            achievedCounts.FirstMeeting = cityJourneys.filter(j => j.createdAt && isWithinInterval(new Date(j.createdAt), dateRange)).length;
 
             cityJourneys.forEach(j => {
                 let hasQuotedGmvInPeriod = false;
@@ -135,17 +137,16 @@ export default function OverallViewPage() {
                             countedCrns[task].add(j.crn);
                         }
                         if (subTask === 'TDDM Initial Meeting') {
-                            if (!countedCrns.FirstMeeting.has(j.crn)) {
-                                achievedCounts.FirstMeeting++;
-                                countedCrns.FirstMeeting.add(j.crn);
-                            }
                             if (!countedCrns.QualifyingMeeting.has(j.crn)) {
                                 achievedCounts.QualifyingMeeting++;
                                 countedCrns.QualifyingMeeting.add(j.crn);
                             }
                         }
                         if ('expectedGmv' in event && event.expectedGmv && event.expectedGmv > 0) hasQuotedGmvInPeriod = true;
-                        if (task === 'Closure' && 'finalGmv' in event && event.finalGmv && event.finalGmv > 0) finalGmv += event.finalGmv;
+                        
+                        if (task === 'Closure' && subTask === 'Closure Meeting (BA Collection)' && 'finalGmv' in event && event.finalGmv && event.finalGmv > 0) {
+                            finalGmv += event.finalGmv;
+                        }
                     }
                 });
                 if (hasQuotedGmvInPeriod && j.quotedGmv && j.quotedGmv > 0) quotedGmv += j.quotedGmv;
@@ -406,5 +407,3 @@ export default function OverallViewPage() {
         </div>
     );
 }
-
-    
