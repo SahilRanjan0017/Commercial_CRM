@@ -8,7 +8,7 @@ import { Badge } from '@/components/ui/badge';
 import Link from 'next/link';
 import Image from 'next/image';
 import { Button } from '@/components/ui/button';
-import { HomeIcon, Loader2, Download, AreaChart, Search, BrainCircuit, User, Mail, Phone, Calculator, FolderOpen, FileImage, Building, IndianRupee, TrendingUp, Target, CheckCircle, Percent, ArrowRight, Users } from 'lucide-react';
+import { HomeIcon, Loader2, Download, AreaChart, Search, BrainCircuit, User, Mail, Phone, Calculator, FolderOpen, FileImage, Building, IndianRupee, TrendingUp, Target, CheckCircle, Percent, ArrowRight, Users, Eye } from 'lucide-react';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import type { CustomerJourney, NegotiationData, Task, RecceFormSubmissionData, TDDMInitialMeetingData, ClosureMeetingData, StageEvent, SiteVisitData, AgreementDiscussionData, AdvanceMeetingFollowUpData } from '@/types';
 import { tasks } from '@/types';
@@ -457,8 +457,8 @@ export default function Journey360Page() {
         <div className="md:col-span-1 flex flex-col gap-6">
             <Card>
                 <CardHeader>
-                    <div className="flex items-center gap-4">
-                        <CardTitle>Dashboard</CardTitle>
+                    <CardTitle>Dashboard</CardTitle>
+                    <div className="flex items-center gap-4 pt-2">
                         <Select value={monthFilter} onValueChange={setMonthFilter}>
                             <SelectTrigger className="w-[120px]">
                                 <SelectValue placeholder="Select Month" />
@@ -481,6 +481,20 @@ export default function Journey360Page() {
                                 ))}
                             </SelectContent>
                         </Select>
+                        <TooltipProvider>
+                            <Tooltip>
+                                <TooltipTrigger asChild>
+                                     <Link href="/overall-view">
+                                        <Button variant="outline" size="icon">
+                                            <Eye className="h-4 w-4" />
+                                        </Button>
+                                    </Link>
+                                </TooltipTrigger>
+                                <TooltipContent>
+                                    <p>Go to Overall View</p>
+                                </TooltipContent>
+                            </Tooltip>
+                        </TooltipProvider>
                     </div>
                 </CardHeader>
                 <CardContent className="space-y-8">
