@@ -577,7 +577,6 @@ export default function Journey360Page() {
                             <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
                             <Input placeholder="Filter by CRN..." value={crnSearch} onChange={(e) => setCrnSearch(e.target.value)} className="w-full sm:w-[200px] pl-8"/>
                         </div>
-                        <Button variant="outline" onClick={downloadCSV} disabled={filteredJourneys.length === 0}><Download className="mr-2 h-4 w-4" />Download</Button>
                     </div>
                 </div>
                  <CardContent className="flex-grow pt-6">
@@ -728,6 +727,8 @@ export default function Journey360Page() {
     </Dialog>
   );
 }
+
+    
 
     
 
