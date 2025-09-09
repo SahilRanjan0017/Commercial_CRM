@@ -5,7 +5,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { Button } from '@/components/ui/button';
-import { AreaChart, BrainCircuit, Calculator, HomeIcon, Loader2 } from 'lucide-react';
+import { AreaChart, BrainCircuit, Calculator, HomeIcon, Loader2, ArrowLeft } from 'lucide-react';
 import { Tooltip, TooltipProvider, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { PasswordDialog } from '@/components/password-dialog';
 import { Card, CardContent, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
@@ -47,6 +47,7 @@ const cityGmvTargets: Record<string, number> = {
     'NCR': 10_00_00_000,
     'Pune': 5_00_00_000,
 };
+const totalTargetGmv = Object.values(cityGmvTargets).reduce((a, b) => a + b, 0);
 
 interface CityPerformanceData {
     city: string;
@@ -252,7 +253,14 @@ export default function OverallViewPage() {
             <main className="flex-grow min-h-0">
                 <Card>
                     <CardHeader className="flex-row items-center justify-between">
-                        <CardTitle>Overall City-wise View</CardTitle>
+                         <div className="flex items-center gap-4">
+                            <Link href="/journey-360">
+                                <Button variant="outline" size="icon">
+                                    <ArrowLeft className="h-4 w-4" />
+                                </Button>
+                            </Link>
+                            <CardTitle>Overall City-wise View</CardTitle>
+                        </div>
                         <div className="flex items-center gap-4">
                             <Select value={monthFilter} onValueChange={setMonthFilter}>
                                 <SelectTrigger className="w-[180px]">
@@ -375,4 +383,5 @@ export default function OverallViewPage() {
     );
 }
 
+    
     
