@@ -1,15 +1,15 @@
 
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { Button } from '@/components/ui/button';
 import { AreaChart, BrainCircuit, Calculator, HomeIcon, Loader2 } from 'lucide-react';
 import { Tooltip, TooltipProvider, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { PasswordDialog } from '@/components/password-dialog';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { Card, CardContent, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow, TableFooter } from '@/components/ui/table';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { subMonths, startOfMonth, endOfMonth, startOfToday, endOfToday, isWithinInterval, getDate, getDaysInMonth } from 'date-fns';
 import type { CustomerJourney, Task } from '@/types';
@@ -43,11 +43,11 @@ const targetGmv = 5_00_00_000;
 
 interface CityPerformanceData {
     city: string;
-    firstMeetings: { achieved: number; target: number; proratedTarget: number; tva: number };
-    recce: { achieved: number; target: number; proratedTarget: number; tva: number };
-    tddm: { achieved: number; target: number; proratedTarget: number; tva: number };
-    advanceMeeting: { achieved: number; target: number; proratedTarget: number; tva: number };
-    closure: { achieved: number; target: number; proratedTarget: number; tva: number };
+    firstMeetings: { achieved: number; target: number; mtdt: number; tva: number };
+    recce: { achieved: number; target: number; mtdt: number; tva: number };
+    tddm: { achieved: number; target: number; mtdt: number; tva: number };
+    advanceMeeting: { achieved: number; target: number; mtdt: number; tva: number };
+    closure: { achieved: number; target: number; mtdt: number; tva: number };
     gmv: { quoted: number; final: number; target: number; tva: number };
 }
 
@@ -125,7 +125,7 @@ export default function OverallViewPage() {
             const calcMetrics = (achieved: number, target: number) => ({
                 achieved,
                 target,
-                proratedTarget: parseFloat((target * monthProgressRatio).toFixed(2)),
+                mtdt: parseFloat((target * monthProgressRatio).toFixed(2)),
                 tva: target > 0 ? parseFloat(((achieved / target) * 100).toFixed(2)) : 0,
             });
 
@@ -146,6 +146,48 @@ export default function OverallViewPage() {
         });
         setPerformanceData(data);
     };
+
+    const grandTotal = useMemo(() => {
+        if (!performanceData || performanceData.length === 0) return null;
+
+        const totals = {
+            firstMeetings: { achieved: 0, target: 0, mtdt: 0, tva: 0, count: 0 },
+            recce: { achieved: 0, target: 0, mtdt: 0, tva: 0, count: 0 },
+            tddm: { achieved: 0, target: 0, mtdt: 0, tva: 0, count: 0 },
+            advanceMeeting: { achieved: 0, target: 0, mtdt: 0, tva: 0, count: 0 },
+            closure: { achieved: 0, target: 0, mtdt: 0, tva: 0, count: 0 },
+            gmv: { quoted: 0, final: 0, target: 0, tva: 0, count: 0 },
+        };
+
+        performanceData.forEach(cityData => {
+            (Object.keys(totals) as Array<keyof typeof totals>).forEach(key => {
+                if (key === 'gmv') {
+                    totals.gmv.quoted += cityData.gmv.quoted;
+                    totals.gmv.final += cityData.gmv.final;
+                    totals.gmv.target += cityData.gmv.target;
+                    totals.gmv.count++;
+                } else {
+                    const metric = cityData[key];
+                    totals[key].achieved += metric.achieved;
+                    totals[key].target += metric.target;
+                    totals[key].mtdt += metric.mtdt;
+                    totals[key].tva += metric.tva;
+                    totals[key].count++;
+                }
+            });
+        });
+        
+        // Calculate averages and final TVA
+        (Object.keys(totals) as Array<keyof typeof totals>).forEach(key => {
+            if (key === 'gmv') {
+                totals.gmv.tva = totals.gmv.target > 0 ? (totals.gmv.quoted / totals.gmv.target) * 100 : 0;
+            } else {
+                totals[key].tva = totals[key].count > 0 ? totals[key].tva / totals[key].count : 0;
+            }
+        });
+
+        return totals;
+    }, [performanceData]);
 
     const formatGmv = (value: number) => {
         if (value >= 10000000) return `₹${(value / 10000000).toFixed(2)} Cr`;
@@ -228,7 +270,7 @@ export default function OverallViewPage() {
                                             <React.Fragment key={`${group}-sub`}>
                                                 <TableHead className="text-center">{group === 'GMV' ? 'Quoted' : 'Achieved'}</TableHead>
                                                 <TableHead className="text-center">Target</TableHead>
-                                                <TableHead className="text-center">{group === 'GMV' ? 'Final' : 'Prorated'}</TableHead>
+                                                <TableHead className="text-center">{group === 'GMV' ? 'Final' : 'MTDT'}</TableHead>
                                                 <TableHead className={cn("text-center", i < metricGroups.length - 1 && "border-r")}>TVA %</TableHead>
                                             </React.Fragment>
                                         ))}
@@ -241,36 +283,73 @@ export default function OverallViewPage() {
                                             
                                             <TableCell className="text-center">{data.firstMeetings.achieved}</TableCell>
                                             <TableCell className="text-center">{data.firstMeetings.target}</TableCell>
-                                            <TableCell className="text-center">{data.firstMeetings.proratedTarget.toFixed(0)}</TableCell>
-                                            <TableCell className="text-center border-r">{data.firstMeetings.tva}%</TableCell>
+                                            <TableCell className="text-center">{data.firstMeetings.mtdt.toFixed(0)}</TableCell>
+                                            <TableCell className="text-center border-r">{data.firstMeetings.tva.toFixed(2)}%</TableCell>
 
                                             <TableCell className="text-center">{data.recce.achieved}</TableCell>
                                             <TableCell className="text-center">{data.recce.target}</TableCell>
-                                            <TableCell className="text-center">{data.recce.proratedTarget.toFixed(0)}</TableCell>
-                                            <TableCell className="text-center border-r">{data.recce.tva}%</TableCell>
+                                            <TableCell className="text-center">{data.recce.mtdt.toFixed(0)}</TableCell>
+                                            <TableCell className="text-center border-r">{data.recce.tva.toFixed(2)}%</TableCell>
 
                                             <TableCell className="text-center">{data.tddm.achieved}</TableCell>
                                             <TableCell className="text-center">{data.tddm.target}</TableCell>
-                                            <TableCell className="text-center">{data.tddm.proratedTarget.toFixed(0)}</TableCell>
-                                            <TableCell className="text-center border-r">{data.tddm.tva}%</TableCell>
+                                            <TableCell className="text-center">{data.tddm.mtdt.toFixed(0)}</TableCell>
+                                            <TableCell className="text-center border-r">{data.tddm.tva.toFixed(2)}%</TableCell>
 
                                             <TableCell className="text-center">{data.advanceMeeting.achieved}</TableCell>
                                             <TableCell className="text-center">{data.advanceMeeting.target}</TableCell>
-                                            <TableCell className="text-center">{data.advanceMeeting.proratedTarget.toFixed(0)}</TableCell>
-                                            <TableCell className="text-center border-r">{data.advanceMeeting.tva}%</TableCell>
+                                            <TableCell className="text-center">{data.advanceMeeting.mtdt.toFixed(0)}</TableCell>
+                                            <TableCell className="text-center border-r">{data.advanceMeeting.tva.toFixed(2)}%</TableCell>
                                             
                                             <TableCell className="text-center">{data.closure.achieved}</TableCell>
                                             <TableCell className="text-center">{data.closure.target}</TableCell>
-                                            <TableCell className="text-center">{data.closure.proratedTarget.toFixed(0)}</TableCell>
-                                            <TableCell className="text-center border-r">{data.closure.tva}%</TableCell>
+                                            <TableCell className="text-center">{data.closure.mtdt.toFixed(0)}</TableCell>
+                                            <TableCell className="text-center border-r">{data.closure.tva.toFixed(2)}%</TableCell>
 
                                             <TableCell className="text-center">{formatGmv(data.gmv.quoted)}</TableCell>
                                             <TableCell className="text-center">{formatGmv(data.gmv.target)}</TableCell>
                                             <TableCell className="text-center">{formatGmv(data.gmv.final)}</TableCell>
-                                            <TableCell className="text-center">{data.gmv.tva}%</TableCell>
+                                            <TableCell className="text-center">{data.gmv.tva.toFixed(2)}%</TableCell>
                                         </TableRow>
                                     ))}
                                 </TableBody>
+                                 {grandTotal && (
+                                    <TableFooter>
+                                        <TableRow className="bg-muted font-bold">
+                                            <TableCell className="sticky left-0 bg-muted z-10 border-r">Grand Total</TableCell>
+                                            
+                                            <TableCell className="text-center">{grandTotal.firstMeetings.achieved}</TableCell>
+                                            <TableCell className="text-center">{grandTotal.firstMeetings.target}</TableCell>
+                                            <TableCell className="text-center">{grandTotal.firstMeetings.mtdt.toFixed(0)}</TableCell>
+                                            <TableCell className="text-center border-r">{grandTotal.firstMeetings.tva.toFixed(2)}%</TableCell>
+
+                                            <TableCell className="text-center">{grandTotal.recce.achieved}</TableCell>
+                                            <TableCell className="text-center">{grandTotal.recce.target}</TableCell>
+                                            <TableCell className="text-center">{grandTotal.recce.mtdt.toFixed(0)}</TableCell>
+                                            <TableCell className="text-center border-r">{grandTotal.recce.tva.toFixed(2)}%</TableCell>
+
+                                            <TableCell className="text-center">{grandTotal.tddm.achieved}</TableCell>
+                                            <TableCell className="text-center">{grandTotal.tddm.target}</TableCell>
+                                            <TableCell className="text-center">{grandTotal.tddm.mtdt.toFixed(0)}</TableCell>
+                                            <TableCell className="text-center border-r">{grandTotal.tddm.tva.toFixed(2)}%</TableCell>
+
+                                            <TableCell className="text-center">{grandTotal.advanceMeeting.achieved}</TableCell>
+                                            <TableCell className="text-center">{grandTotal.advanceMeeting.target}</TableCell>
+                                            <TableCell className="text-center">{grandTotal.advanceMeeting.mtdt.toFixed(0)}</TableCell>
+                                            <TableCell className="text-center border-r">{grandTotal.advanceMeeting.tva.toFixed(2)}%</TableCell>
+                                            
+                                            <TableCell className="text-center">{grandTotal.closure.achieved}</TableCell>
+                                            <TableCell className="text-center">{grandTotal.closure.target}</TableCell>
+                                            <TableCell className="text-center">{grandTotal.closure.mtdt.toFixed(0)}</TableCell>
+                                            <TableCell className="text-center border-r">{grandTotal.closure.tva.toFixed(2)}%</TableCell>
+
+                                            <TableCell className="text-center">{formatGmv(grandTotal.gmv.quoted)}</TableCell>
+                                            <TableCell className="text-center">{formatGmv(grandTotal.gmv.target)}</TableCell>
+                                            <TableCell className="text-center">{formatGmv(grandTotal.gmv.final)}</TableCell>
+                                            <TableCell className="text-center">{grandTotal.gmv.tva.toFixed(2)}%</TableCell>
+                                        </TableRow>
+                                    </TableFooter>
+                                )}
                             </Table>
                         )}
                     </CardContent>
