@@ -4,8 +4,13 @@ import * as z from 'zod';
 // --- TYPE DEFINITIONS ---
 
 export const areCities = [
-    'BLR', 'CHN', 'HYD', 'NCR - Gurgaon', 'NCR - Noida', 'NCR - Faridabad', 
-    'NCR - Delhi', 'NCR - Ghaziabad', 'Pune', 'Mysore'
+    'BLR', 'Bangalore', 'Blr Commercial',
+    'CHN', 'Chennai', 'CHN Commercial',
+    'HYD', 'Hyderabad', 'Hyd Commercial',
+    'NCR - Gurgaon', 'NCR - Noida', 'NCR - Faridabad', 
+    'NCR - Delhi', 'NCR - Ghaziabad', 
+    'Pune', 'Pune Commercial',
+    'Mysore'
 ];
 export const areZoning = ['Residential', 'Commercial', 'Mixed', 'Agriculture', 'Industrial', 'PSP'];
 export const arePlotAreas = ['<2000', '2000-5000', '5000-10000', '10000-15000', '15000-20000', '>20000'];
@@ -98,33 +103,33 @@ const willingnessToManageScores: Record<string, Record<string, number>> = {
 const governmentPermissibility: Record<string, Record<string, string[]>> = {
     'PG': {
         '<30': [],
-        '30-40': ['CHN', 'HYD', 'Pune', 'Mysore', 'NCR - Faridabad', 'NCR - Delhi'],
-        '40-50': ['BLR', 'CHN', 'HYD', 'NCR - Noida', 'NCR - Gurgaon', 'NCR - Faridabad', 'NCR - Delhi', 'NCR - Ghaziabad', 'Pune', 'Mysore'],
-        '>50': ['BLR', 'CHN', 'HYD', 'NCR - Noida', 'NCR - Gurgaon', 'NCR - Faridabad', 'NCR - Delhi', 'NCR - Ghaziabad', 'Pune', 'Mysore'],
+        '30-40': ['CHN', 'Chennai', 'CHN Commercial', 'HYD', 'Hyderabad', 'Hyd Commercial', 'Pune', 'Pune Commercial', 'Mysore', 'NCR - Faridabad', 'NCR - Delhi'],
+        '40-50': ['BLR', 'Bangalore', 'Blr Commercial', 'CHN', 'Chennai', 'CHN Commercial', 'HYD', 'Hyderabad', 'Hyd Commercial', 'NCR - Noida', 'NCR - Gurgaon', 'NCR - Faridabad', 'NCR - Delhi', 'NCR - Ghaziabad', 'Pune', 'Pune Commercial', 'Mysore'],
+        '>50': ['BLR', 'Bangalore', 'Blr Commercial', 'CHN', 'Chennai', 'CHN Commercial', 'HYD', 'Hyderabad', 'Hyd Commercial', 'NCR - Noida', 'NCR - Gurgaon', 'NCR - Faridabad', 'NCR - Delhi', 'NCR - Ghaziabad', 'Pune', 'Pune Commercial', 'Mysore'],
     },
     'MRU': {
         '<30': [],
-        '30-40': ['BLR', 'CHN', 'HYD', 'NCR - Gurgaon', 'NCR - Noida', 'NCR - Faridabad', 'NCR - Delhi', 'NCR - Ghaziabad', 'Pune', 'Mysore'],
-        '40-50': ['BLR', 'CHN', 'HYD', 'NCR - Gurgaon', 'NCR - Noida', 'NCR - Faridabad', 'NCR - Delhi', 'NCR - Ghaziabad', 'Pune', 'Mysore'],
-        '>50': ['BLR', 'CHN', 'HYD', 'NCR - Gurgaon', 'NCR - Noida', 'NCR - Faridabad', 'NCR - Delhi', 'NCR - Ghaziabad', 'Pune', 'Mysore'],
+        '30-40': ['BLR', 'Bangalore', 'Blr Commercial', 'CHN', 'Chennai', 'CHN Commercial', 'HYD', 'Hyderabad', 'Hyd Commercial', 'NCR - Gurgaon', 'NCR - Noida', 'NCR - Faridabad', 'NCR - Delhi', 'NCR - Ghaziabad', 'Pune', 'Pune Commercial', 'Mysore'],
+        '40-50': ['BLR', 'Bangalore', 'Blr Commercial', 'CHN', 'Chennai', 'CHN Commercial', 'HYD', 'Hyderabad', 'Hyd Commercial', 'NCR - Gurgaon', 'NCR - Noida', 'NCR - Faridabad', 'NCR - Delhi', 'NCR - Ghaziabad', 'Pune', 'Pune Commercial', 'Mysore'],
+        '>50': ['BLR', 'Bangalore', 'Blr Commercial', 'CHN', 'Chennai', 'CHN Commercial', 'HYD', 'Hyderabad', 'Hyd Commercial', 'NCR - Gurgaon', 'NCR - Noida', 'NCR - Faridabad', 'NCR - Delhi', 'NCR - Ghaziabad', 'Pune', 'Pune Commercial', 'Mysore'],
     },
     'Office / Rental': {
         '<30': [],
-        '30-40': ['BLR', 'CHN', 'HYD', 'NCR - Gurgaon', 'NCR - Noida', 'NCR - Faridabad', 'NCR - Delhi', 'NCR - Ghaziabad', 'Pune', 'Mysore'],
-        '40-50': ['BLR', 'CHN', 'HYD', 'NCR - Gurgaon', 'NCR - Noida', 'NCR - Faridabad', 'NCR - Delhi', 'NCR - Ghaziabad', 'Pune', 'Mysore'],
-        '>50': ['BLR', 'CHN', 'HYD', 'NCR - Gurgaon', 'NCR - Noida', 'NCR - Faridabad', 'NCR - Delhi', 'NCR - Ghaziabad', 'Pune', 'Mysore'],
+        '30-40': ['BLR', 'Bangalore', 'Blr Commercial', 'CHN', 'Chennai', 'CHN Commercial', 'HYD', 'Hyderabad', 'Hyd Commercial', 'NCR - Gurgaon', 'NCR - Noida', 'NCR - Faridabad', 'NCR - Delhi', 'NCR - Ghaziabad', 'Pune', 'Pune Commercial', 'Mysore'],
+        '40-50': ['BLR', 'Bangalore', 'Blr Commercial', 'CHN', 'Chennai', 'CHN Commercial', 'HYD', 'Hyderabad', 'Hyd Commercial', 'NCR - Gurgaon', 'NCR - Noida', 'NCR - Faridabad', 'NCR - Delhi', 'NCR - Ghaziabad', 'Pune', 'Pune Commercial', 'Mysore'],
+        '>50': ['BLR', 'Bangalore', 'Blr Commercial', 'CHN', 'Chennai', 'CHN Commercial', 'HYD', 'Hyderabad', 'Hyd Commercial', 'NCR - Gurgaon', 'NCR - Noida', 'NCR - Faridabad', 'NCR - Delhi', 'NCR - Ghaziabad', 'Pune', 'Pune Commercial', 'Mysore'],
     },
     'Hotel': {
         '<30': [],
-        '30-40': ['BLR', 'CHN', 'HYD', 'NCR - Gurgaon', 'NCR - Noida', 'NCR - Faridabad', 'NCR - Delhi', 'NCR - Ghaziabad', 'Pune', 'Mysore'],
-        '40-50': ['BLR', 'CHN', 'HYD', 'NCR - Gurgaon', 'NCR - Noida', 'NCR - Faridabad', 'NCR - Delhi', 'NCR - Ghaziabad', 'Pune', 'Mysore'],
-        '>50': ['BLR', 'CHN', 'HYD', 'NCR - Gurgaon', 'NCR - Noida', 'NCR - Faridabad', 'NCR - Delhi', 'NCR - Ghaziabad', 'Pune', 'Mysore'],
+        '30-40': ['BLR', 'Bangalore', 'Blr Commercial', 'CHN', 'Chennai', 'CHN Commercial', 'HYD', 'Hyderabad', 'Hyd Commercial', 'NCR - Gurgaon', 'NCR - Noida', 'NCR - Faridabad', 'NCR - Delhi', 'NCR - Ghaziabad', 'Pune', 'Pune Commercial', 'Mysore'],
+        '40-50': ['BLR', 'Bangalore', 'Blr Commercial', 'CHN', 'Chennai', 'CHN Commercial', 'HYD', 'Hyderabad', 'Hyd Commercial', 'NCR - Gurgaon', 'NCR - Noida', 'NCR - Faridabad', 'NCR - Delhi', 'NCR - Ghaziabad', 'Pune', 'Pune Commercial', 'Mysore'],
+        '>50': ['BLR', 'Bangalore', 'Blr Commercial', 'CHN', 'Chennai', 'CHN Commercial', 'HYD', 'Hyderabad', 'Hyd Commercial', 'NCR - Gurgaon', 'NCR - Noida', 'NCR - Faridabad', 'NCR - Delhi', 'NCR - Ghaziabad', 'Pune', 'Pune Commercial', 'Mysore'],
     },
     'School': {
         '<30': [],
         '30-40': [],
-        '40-50': ['BLR', 'CHN', 'HYD', 'NCR - Gurgaon', 'NCR - Noida', 'NCR - Faridabad', 'NCR - Delhi', 'NCR - Ghaziabad', 'Pune', 'Mysore'],
-        '>50': ['BLR', 'CHN', 'HYD', 'NCR - Gurgaon', 'NCR - Noida', 'NCR - Faridabad', 'NCR - Delhi', 'NCR - Ghaziabad', 'Pune', 'Mysore'],
+        '40-50': ['BLR', 'Bangalore', 'Blr Commercial', 'CHN', 'Chennai', 'CHN Commercial', 'HYD', 'Hyderabad', 'Hyd Commercial', 'NCR - Gurgaon', 'NCR - Noida', 'NCR - Faridabad', 'NCR - Delhi', 'NCR - Ghaziabad', 'Pune', 'Pune Commercial', 'Mysore'],
+        '>50': ['BLR', 'Bangalore', 'Blr Commercial', 'CHN', 'Chennai', 'CHN Commercial', 'HYD', 'Hyderabad', 'Hyd Commercial', 'NCR - Gurgaon', 'NCR - Noida', 'NCR - Faridabad', 'NCR - Delhi', 'NCR - Ghaziabad', 'Pune', 'Pune Commercial', 'Mysore'],
     },
 };
 

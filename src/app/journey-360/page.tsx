@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useEffect } from 'react';
@@ -461,7 +462,7 @@ export default function Journey360Page() {
                                 <SelectItem value="All">All Cities</SelectItem>
                                 {areCities.map(city => (
                                     <SelectItem key={city} value={city}>
-                                        {city === 'BLR' ? 'Blr Commercial' : city}
+                                        {city}
                                     </SelectItem>
                                 ))}
                             </SelectContent>
