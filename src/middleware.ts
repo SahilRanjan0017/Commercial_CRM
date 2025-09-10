@@ -1,36 +1,84 @@
-import { type NextRequest, NextResponse } from 'next/server'
-import { updateSession } from '@/utils/supabase/middleware'
-import { createClient } from './utils/supabase/server'
 
+import { createServerClient, type CookieOptions } from '@supabase/ssr'
+import { type NextRequest, NextResponse } from 'next/server'
 
 export async function middleware(request: NextRequest) {
-    // First, run updateSession to handle session refresh logic.
-    // This will return a response with the updated session cookie if needed.
-    const response = await updateSession(request);
+  let response = NextResponse.next({
+    request: {
+      headers: request.headers,
+    },
+  })
 
-    // Now, create a Supabase client with the (potentially updated) cookies from the response.
-    // This allows us to check the user's authentication status reliably.
-    const supabase = createClient();
-    
-    const { data: { user } } = await supabase.auth.getUser();
-
-    // If the user is not logged in and is trying to access a protected route,
-    // redirect them to the login page.
-    if (
-        !user &&
-        !request.nextUrl.pathname.startsWith('/login') &&
-        !request.nextUrl.pathname.startsWith('/signup') &&
-        !request.nextUrl.pathname.startsWith('/auth/confirm') &&
-        !request.nextUrl.pathname.startsWith('/error')
-    ) {
-        const url = request.nextUrl.clone();
-        url.pathname = '/login';
-        return NextResponse.redirect(url);
+  const supabase = createServerClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    {
+      cookies: {
+        get(name: string) {
+          return request.cookies.get(name)?.value
+        },
+        set(name: string, value: string, options: CookieOptions) {
+          // If the cookie is set, update the request's cookies.
+          request.cookies.set({
+            name,
+            value,
+            ...options,
+          })
+          // Also, update the response's cookies.
+          response = NextResponse.next({
+            request: {
+              headers: request.headers,
+            },
+          })
+          response.cookies.set({
+            name,
+            value,
+            ...options,
+          })
+        },
+        remove(name: string, options: CookieOptions) {
+          // If the cookie is removed, update the request's cookies.
+          request.cookies.set({
+            name,
+            value: '',
+            ...options,
+          })
+          // Also, update the response's cookies.
+          response = NextResponse.next({
+            request: {
+              headers: request.headers,
+            },
+          })
+          response.cookies.set({
+            name,
+            value: '',
+            ...options,
+          })
+        },
+      },
     }
-    
-    // If the user is authenticated or is accessing a public route,
-    // allow the request to proceed with the response from updateSession.
-    return response;
+  )
+
+  // This will refresh the session if it's expired.
+  const { data: { user } } = await supabase.auth.getUser()
+
+  // If the user is not logged in and is trying to access a protected route,
+  // redirect them to the login page.
+  if (
+    !user &&
+    !request.nextUrl.pathname.startsWith('/login') &&
+    !request.nextUrl.pathname.startsWith('/signup') &&
+    !request.nextUrl.pathname.startsWith('/auth/confirm') &&
+    !request.nextUrl.pathname.startsWith('/error')
+  ) {
+    const url = request.nextUrl.clone()
+    url.pathname = '/login'
+    return NextResponse.redirect(url)
+  }
+
+  // If the user is authenticated or is accessing a public route,
+  // allow the request to proceed with the response.
+  return response
 }
 
 export const config = {
