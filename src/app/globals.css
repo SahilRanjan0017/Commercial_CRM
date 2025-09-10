@@ -14,19 +14,19 @@ body {
     --card-foreground: 240 5% 12%;
     --popover: 0 0% 100%;
     --popover-foreground: 240 5% 12%;
-    --primary: 43 100% 58%; /* Accent Yellow: #FFBC28 */
-    --primary-foreground: 240 5% 12%;
+    --primary: 24 96% 53%; /* Pitch Orange */
+    --primary-foreground: 0 0% 98%;
     --secondary: 220 91% 68%; /* Secondary Blue: #446DF6 */
     --secondary-foreground: 0 0% 98%;
     --muted: 0 0% 96.1%;
-    --muted-foreground: 0 0% 64%; /* Subtle Gray: #A5A5A5 */
+    --muted-foreground: 240 10% 3.9%; /* Black for muted text */
     --accent: 0 0% 96.1%;
     --accent-foreground: 240 5% 12%;
     --destructive: 0 84.2% 60.2%;
     --destructive-foreground: 0 0% 98%;
     --border: 0 0% 89.8%;
     --input: 0 0% 93%;
-    --ring: 43 100% 58%; /* Accent Yellow: #FFBC28 for focus rings */
+    --ring: 24 96% 53%; /* Pitch Orange for focus rings */
     --chart-1: 12 76% 61%;
     --chart-2: 173 58% 39%;
     --chart-3: 197 37% 24%;
@@ -49,19 +49,19 @@ body {
     --card-foreground: 0 0% 98%;
     --popover: 240 5% 12%;
     --popover-foreground: 0 0% 98%;
-    --primary: 43 100% 58%; /* Accent Yellow: #FFBC28 */
-    --primary-foreground: 240 5% 12%;
+    --primary: 24 96% 53%; /* Pitch Orange */
+    --primary-foreground: 0 0% 98%;
     --secondary: 220 91% 68%; /* Secondary Blue: #446DF6 */
     --secondary-foreground: 0 0% 98%;
     --muted: 240 5% 15%;
-    --muted-foreground: 0 0% 64%; /* Subtle Gray: #A5A5A5 */
+    --muted-foreground: 0 0% 98%; /* Black (inverted for dark mode to white) */
     --accent: 240 5% 18%;
     --accent-foreground: 0 0% 98%;
     --destructive: 0 62.8% 30.6%;
     --destructive-foreground: 0 0% 98%;
     --border: 0 0% 64%; /* Subtle Gray for borders in dark mode */
     --input: 240 5% 18%;
-    --ring: 43 100% 58%; /* Accent Yellow for focus rings */
+    --ring: 24 96% 53%; /* Pitch Orange for focus rings */
     --chart-1: 220 70% 50%;
     --chart-2: 160 60% 45%;
     --chart-3: 30 80% 55%;
