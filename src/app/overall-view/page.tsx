@@ -97,10 +97,10 @@ export default function OverallViewPage() {
     }, []);
 
     useEffect(() => {
-        if (journeys.length > 0) {
+        if (!loading && journeys.length > 0) {
             calculatePerformanceData();
         }
-    }, [journeys, monthFilter]);
+    }, [journeys, monthFilter, loading]);
 
     const calculatePerformanceData = () => {
         const getDateRangeForFilter = (filter: string): { start: Date; end: Date } => {
