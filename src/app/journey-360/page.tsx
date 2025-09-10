@@ -678,12 +678,12 @@ export default function Journey360Page() {
                                     <p className="text-muted-foreground">{selectedJourney.quotedGmv ? formatGmv(selectedJourney.quotedGmv) : 'N/A'}</p>
                                 </div>
                             </div>
-                            {selectedJourney.isClosed && selectedJourney.finalGmv && (
+                            {selectedJourney.isClosed && selectedJourney.finalGmv != null && (
                                 <div className="flex items-start gap-3">
-                                    <IndianRupee className="w-4 h-4 text-green-600 mt-1" />
+                                    <CheckCircle className="w-4 h-4 text-green-600 mt-1" />
                                     <div>
                                         <p className="font-medium">Final GMV</p>
-                                        <p className="text-muted-foreground font-semibold text-green-600">{formatGmv(selectedJourney.finalGmv)}</p>
+                                        <p className="font-semibold text-green-600">{formatGmv(selectedJourney.finalGmv)}</p>
                                     </div>
                                 </div>
                             )}
