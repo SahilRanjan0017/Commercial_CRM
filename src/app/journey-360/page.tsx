@@ -245,7 +245,11 @@ export default function Journey360Page() {
   };
   
   const filteredJourneys = journeys.filter(journey => {
-    const crnFilterMatch = crnSearch.trim() === '' || journey.crn.toLowerCase().includes(crnSearch.toLowerCase().trim());
+    const searchTerm = crnSearch.toLowerCase().trim();
+    const searchFilterMatch = searchTerm === '' || 
+        journey.crn.toLowerCase().includes(searchTerm) ||
+        (journey.customerName && journey.customerName.toLowerCase().includes(searchTerm));
+        
     const cityFilterMatch = cityFilter === 'All' || (cityGroups[cityFilter]?.includes(journey.city) ?? false);
     const dateRange = getDateRangeForFilter(monthFilter);
 
@@ -269,22 +273,22 @@ export default function Journey360Page() {
         const monthFilterMatch = journey.history.length > 0
             ? journey.history.some(event => isWithinInterval(new Date(event.timestamp), dateRange))
             : (journey.createdAt && isWithinInterval(new Date(journey.createdAt), dateRange));
-        return crnFilterMatch && cityFilterMatch && monthFilterMatch;
+        return searchFilterMatch && cityFilterMatch && monthFilterMatch;
     }
 
     if (activeFilter === 'QuotedGMV') {
         const hasQuotedGmvInPeriod = !journey.isClosed && typeof journey.quotedGmv === 'number' && journey.quotedGmv >= 1 &&
             journey.history.some(e => isWithinInterval(new Date(e.timestamp), dateRange) && e.stage.task === 'Recce' && e.stage.subTask === 'Recce Form Submission');
-        return crnFilterMatch && cityFilterMatch && hasQuotedGmvInPeriod;
+        return searchFilterMatch && cityFilterMatch && hasQuotedGmvInPeriod;
     }
 
     if (activeFilter === 'FinalGMV') {
         const hasFinalGmvInPeriod = journey.isClosed && typeof journey.finalGmv === 'number' && journey.finalGmv >= 1 &&
             journey.history.some(e => e.stage.subTask === 'Closure Meeting (BA Collection)' && isWithinInterval(new Date(e.timestamp), dateRange));
-        return crnFilterMatch && cityFilterMatch && hasFinalGmvInPeriod;
+        return searchFilterMatch && cityFilterMatch && hasFinalGmvInPeriod;
     }
 
-    return crnFilterMatch && cityFilterMatch && hasEventInPeriod(activeFilter);
+    return searchFilterMatch && cityFilterMatch && hasEventInPeriod(activeFilter);
 });
 
   const downloadCSV = () => {
@@ -600,7 +604,7 @@ export default function Journey360Page() {
                     <div className="flex-grow sm:flex-grow-0 sm:ml-auto flex items-center gap-2">
                          <div className="relative">
                             <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-                            <Input placeholder="Filter by CRN..." value={crnSearch} onChange={(e) => setCrnSearch(e.target.value)} className="w-full sm:w-[200px] pl-8"/>
+                            <Input placeholder="Filter by CRN or Name..." value={crnSearch} onChange={(e) => setCrnSearch(e.target.value)} className="w-full sm:w-[200px] pl-8"/>
                         </div>
                     </div>
                 </div>
@@ -779,5 +783,7 @@ export default function Journey360Page() {
     </Dialog>
   );
 }
+
+    
 
     
