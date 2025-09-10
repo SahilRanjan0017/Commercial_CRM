@@ -51,7 +51,7 @@ export async function middleware(request: NextRequest) {
     '/range-calculator',
     '/overall-view'
   ]
-
+  
   const isProtectedRoute = protectedRoutes.some(route => 
     request.nextUrl.pathname === route || (route !== '/' && request.nextUrl.pathname.startsWith(route + '/'))
   )
