@@ -3,17 +3,17 @@
 
 import { Button } from "@/components/ui/button"
 import Link from "next/link"
+import { useSearchParams } from "next/navigation"
 
-export default function ErrorPage({
-  searchParams,
-}: {
-  searchParams: { message: string }
-}) {
+export default function ErrorPage() {
+  const searchParams = useSearchParams()
+  const message = searchParams.get('message')
+
   return (
     <div className="flex flex-col items-center justify-center min-h-screen bg-background text-center">
         <h1 className="text-4xl font-bold text-destructive mb-4">Something went wrong</h1>
         <p className="text-lg text-muted-foreground mb-8">
-            {searchParams.message || "We're sorry, but an unexpected error occurred. Please try again later."}
+            {message || "We're sorry, but an unexpected error occurred. Please try again later."}
         </p>
         <Button asChild>
             <Link href="/">Go back to Home</Link>
