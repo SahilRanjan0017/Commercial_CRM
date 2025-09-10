@@ -23,7 +23,7 @@ export async function signup(formData: FormData) {
 
   if (error) {
     console.error('Signup Error:', error)
-    return redirect(`/signup?message=${encodeURIComponent("Could not authenticate user")}`)
+    return redirect(`/signup?message=${encodeURIComponent("Could not create user. Please try again.")}`)
   }
 
   // After successful signup, redirect to login page with a success message
