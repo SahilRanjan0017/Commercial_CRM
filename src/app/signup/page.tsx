@@ -1,3 +1,4 @@
+
 import { signup } from '../login/actions'
 import { Button } from '@/components/ui/button'
 import {
@@ -25,7 +26,7 @@ export default function SignupPage() {
           <form className="grid gap-4">
             <div className="grid gap-2">
               <Label htmlFor="name">Name</Label>
-              <Input id="name" name="name" placeholder="Max" required />
+              <Input id="name" name="name" placeholder="Max Robinson" required />
             </div>
             <div className="grid gap-2">
               <Label htmlFor="email">Email</Label>
@@ -39,7 +40,7 @@ export default function SignupPage() {
             </div>
             <div className="grid gap-2">
               <Label htmlFor="password">Password</Label>
-              <Input id="password" name="password" type="password" />
+              <Input id="password" name="password" type="password" required/>
             </div>
             <Button formAction={signup} className="w-full">
               Create an account

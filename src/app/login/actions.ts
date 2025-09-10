@@ -1,3 +1,4 @@
+
 'use server'
 
 import { createClient } from '@/utils/supabase/server'
@@ -11,11 +12,16 @@ export async function signup(formData: FormData) {
   const { error } = await supabase.auth.signUp({
     email,
     password,
-    options: { data: { full_name: formData.get('full_name') } }
+    options: { data: { full_name: formData.get('name') } }
   })
 
-  if (error) throw error
-  redirect('/login')  // after signup
+  if (error) {
+    console.error('Signup Error:', error)
+    return redirect('/error?message=Could not authenticate user')
+  }
+
+  // After successful signup, redirect to login page with a success message
+  return redirect('/login?message=Check email to continue sign in process')
 }
 
 export async function login(formData: FormData) {
@@ -28,6 +34,9 @@ export async function login(formData: FormData) {
     password,
   })
 
-  if (error) throw error
-  redirect('/private') // after login
+  if (error) {
+    return redirect('/login?message=Invalid credentials')
+  }
+
+  redirect('/private')
 }
