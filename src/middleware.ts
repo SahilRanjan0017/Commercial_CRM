@@ -57,13 +57,13 @@ export async function middleware(request: NextRequest) {
 
   const { data: { user } } = await supabase.auth.getUser()
 
-  const isAuthRoute = request.nextUrl.pathname.startsWith('/login') || request.nextUrl.pathname.startsWith('/signup');
-
-  if (!user && !isAuthRoute) {
+  // if user is not signed in and the current path is not /login or /signup, redirect the user to the login page.
+  if (!user && !['/login', '/signup', '/auth/confirm'].includes(request.nextUrl.pathname)) {
     return NextResponse.redirect(new URL('/login', request.url))
   }
 
-  if (user && isAuthRoute) {
+  // if user is signed in and the current path is /login or /signup, redirect the user to the home page.
+  if (user && (request.nextUrl.pathname === '/login' || request.nextUrl.pathname === '/signup')) {
     return NextResponse.redirect(new URL('/', request.url))
   }
 
@@ -77,8 +77,9 @@ export const config = {
      * - _next/static (static files)
      * - _next/image (image optimization files)
      * - favicon.ico (favicon file)
-     * - auth routes
+     * - error (error page)
+     * Feel free to modify this pattern to include more paths.
      */
-    '/((?!_next/static|_next/image|favicon.ico|auth/confirm|error).*)',
+    '/((?!_next/static|_next/image|favicon.ico|error).*)',
   ],
 }
