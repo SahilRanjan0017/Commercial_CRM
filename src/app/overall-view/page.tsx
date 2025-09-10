@@ -121,28 +121,30 @@ export default function OverallViewPage() {
             const achievedCounts: Record<Task | 'FirstMeeting' | 'QualifyingMeeting', number> = {
                 'FirstMeeting': 0, 'QualifyingMeeting': 0, 'Recce': 0, 'TDDM': 0, 'Advance Meeting': 0, 'Closure': 0
             };
-            const countedCrns = Object.keys(achievedCounts).reduce((acc, k) => ({ ...acc, [k]: new Set<string>() }), {} as Record<string, Set<string>>);
+            const countedCrnsForStage = Object.keys(achievedCounts).reduce((acc, k) => ({ ...acc, [k]: new Set<string>() }), {} as Record<string, Set<string>>);
+            
             let quotedGmv = 0;
             let finalGmv = 0;
-            
-            achievedCounts.FirstMeeting = cityJourneys.filter(j => j.createdAt && isWithinInterval(new Date(j.createdAt), dateRange)).length;
 
             cityJourneys.forEach(j => {
+                if (j.createdAt && isWithinInterval(new Date(j.createdAt), dateRange) && !countedCrnsForStage.FirstMeeting.has(j.crn)) {
+                     achievedCounts.FirstMeeting++;
+                     countedCrnsForStage.FirstMeeting.add(j.crn);
+                }
+
                 let hasQuotedGmvInPeriod = false;
                 j.history.forEach(event => {
                     if (isWithinInterval(new Date(event.timestamp), dateRange)) {
                         const { task, subTask } = event.stage;
-                        if (!countedCrns[task].has(j.crn)) {
+                        if (!countedCrnsForStage[task].has(j.crn)) {
                             achievedCounts[task]++;
-                            countedCrns[task].add(j.crn);
+                            countedCrnsForStage[task].add(j.crn);
                         }
-                        if (subTask === 'TDDM Initial Meeting') {
-                            if (!countedCrns.QualifyingMeeting.has(j.crn)) {
-                                achievedCounts.QualifyingMeeting++;
-                                countedCrns.QualifyingMeeting.add(j.crn);
-                            }
+                        if (subTask === 'TDDM Initial Meeting' && !countedCrnsForStage.QualifyingMeeting.has(j.crn)) {
+                            achievedCounts.QualifyingMeeting++;
+                            countedCrnsForStage.QualifyingMeeting.add(j.crn);
                         }
-                        if ('expectedGmv' in event && event.expectedGmv && event.expectedGmv > 0) hasQuotedGmvInPeriod = true;
+                        if (task === 'Recce' && subTask === 'Recce Form Submission' && 'expectedGmv' in event && event.expectedGmv > 0) hasQuotedGmvInPeriod = true;
                         
                         if (task === 'Closure' && subTask === 'Closure Meeting (BA Collection)' && 'finalGmv' in event && event.finalGmv && event.finalGmv > 0) {
                             finalGmv += event.finalGmv;
@@ -193,25 +195,31 @@ export default function OverallViewPage() {
 
         performanceData.forEach(cityData => {
             (Object.keys(totals) as Array<keyof typeof totals>).forEach(key => {
-                const metric = totals[key as keyof typeof totals];
-                const cityMetric = cityData[key as keyof typeof cityData];
-                metric.achieved += cityMetric.achieved;
-                metric.target += cityMetric.target;
-                metric.mtdt += cityMetric.mtdt;
-                if (key === 'gmv') {
-                   (metric as any).quoted += (cityMetric as any).quoted;
-                   (metric as any).final += (cityMetric as any).final;
+                const metricKey = key as keyof typeof totals;
+                if (metricKey === 'gmv') {
+                    totals.gmv.quoted += cityData.gmv.quoted;
+                    totals.gmv.final += cityData.gmv.final;
+                    totals.gmv.target += cityData.gmv.target;
+                } else {
+                    const metric = totals[metricKey];
+                    const cityMetric = cityData[metricKey];
+                    metric.achieved += cityMetric.achieved;
+                    metric.target += cityMetric.target;
+                    metric.mtdt += cityMetric.mtdt;
                 }
             });
         });
         
         (Object.keys(totals) as Array<keyof typeof totals>).forEach(key => {
-             const metric = totals[key as keyof typeof totals];
-             if (metric.target > 0) {
-                metric.tva = (metric.achieved / metric.target) * 100;
-             } else {
-                metric.tva = 0;
-             }
+            const metricKey = key as keyof typeof totals;
+            if (metricKey !== 'gmv') {
+                const metric = totals[metricKey];
+                if (metric.target > 0) {
+                    metric.tva = (metric.achieved / metric.target) * 100;
+                } else {
+                    metric.tva = 0;
+                }
+            }
         });
         
         if (totals.gmv.target > 0) {
@@ -405,5 +413,3 @@ export default function OverallViewPage() {
         </div>
     );
 }
-
-    
