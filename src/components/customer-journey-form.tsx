@@ -13,7 +13,8 @@ import { stageMap, tasks } from '@/types';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
 import { useToast } from '@/hooks/use-toast';
 import { ArrowLeft, Loader2, Lock } from 'lucide-react';
-import { areCities } from '@/lib/are-logic';
+
+const cities = ["HYD", "BLR", "CHN", "PUNE", "NCR"];
 
 export function CustomerJourneyForm() {
   const [journey, setJourney] = useState<CustomerJourney | null>(null);
@@ -269,7 +270,7 @@ export function CustomerJourneyForm() {
                                             <SelectValue placeholder="Select city" />
                                         </SelectTrigger>
                                         <SelectContent>
-                                            {areCities.map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}
+                                            {cities.map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}
                                         </SelectContent>
                                     </Select>
                                 </div>
