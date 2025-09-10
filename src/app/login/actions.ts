@@ -1,3 +1,4 @@
+
 'use server'
 
 import { createClient } from '@/utils/supabase/server'
@@ -14,11 +15,13 @@ export async function signup(formData: FormData) {
   const { error } = await supabase.auth.signUp({
     email,
     password,
-    options: { data: { 
-        full_name: full_name,
-        role: role,
-        city: city
-    } }
+    options: { 
+        data: { 
+            full_name: full_name,
+            role: role,
+            city: city
+        } 
+    }
   })
 
   if (error) {
