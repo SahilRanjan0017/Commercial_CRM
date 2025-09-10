@@ -32,11 +32,11 @@ export default function SignupPage() {
 
             <form action={signup} className="space-y-4">
                 <div>
-                    <Label htmlFor="name">Name</Label>
+                    <Label htmlFor="full_name">Name</Label>
                     <Input
-                        id="name"
+                        id="full_name"
                         type="text"
-                        name="name"
+                        name="full_name"
                         placeholder="Sahil Ranjan"
                         required
                     />
