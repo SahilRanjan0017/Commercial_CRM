@@ -17,17 +17,8 @@ export async function middleware(request: NextRequest) {
           return request.cookies.get(name)?.value
         },
         set(name: string, value: string, options: CookieOptions) {
-          // If the cookie is updated, update the request cookies as well.
-          request.cookies.set({
-            name,
-            value,
-            ...options,
-          })
-          response = NextResponse.next({
-            request: {
-              headers: request.headers,
-            },
-          })
+          // The `set` method was modifying the request cookies, which is not allowed.
+          // Instead, the cookie should be set on the response object.
           response.cookies.set({
             name,
             value,
@@ -35,17 +26,8 @@ export async function middleware(request: NextRequest) {
           })
         },
         remove(name: string, options: CookieOptions) {
-          // If the cookie is removed, update the request cookies as well.
-          request.cookies.set({
-            name,
-            value: '',
-            ...options,
-          })
-          response = NextResponse.next({
-            request: {
-              headers: request.headers,
-            },
-          })
+          // The `remove` method was modifying the request cookies, which is not allowed.
+          // Instead, the cookie should be removed from the response object.
           response.cookies.set({
             name,
             value: '',
