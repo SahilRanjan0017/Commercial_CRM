@@ -13,7 +13,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 export default function SignupPage() {
   const searchParams = useSearchParams();
   const message = searchParams.get("message");
-  const roles = ["OS", "Business Head", "Admin"];
+  const roles = ["OS", "OS Manager", "Business Head", "Admin"];
   const cities = ["BLR", "CHN", "HYD", "PUNE", "NCR"];
 
   return (
