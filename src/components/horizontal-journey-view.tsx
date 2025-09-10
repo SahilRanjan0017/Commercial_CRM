@@ -48,7 +48,10 @@ export function HorizontalJourneyView({ history, isClosed }: HorizontalJourneyVi
       <div className="w-full space-y-4">
         <div className="relative w-full h-2 bg-muted rounded-full">
             <div 
-                className="absolute top-0 left-0 h-2 bg-primary rounded-full transition-all duration-500"
+                className={cn(
+                    "absolute top-0 left-0 h-2 rounded-full transition-all duration-500",
+                    isClosed ? "bg-green-600" : "bg-primary"
+                )}
                 style={{ width: `${progressPercentage}%`}}
             ></div>
         </div>
@@ -62,7 +65,7 @@ export function HorizontalJourneyView({ history, isClosed }: HorizontalJourneyVi
             const stageStatus = isJourneyClosedComplete || isTaskComplete ? 'complete' : isTaskActive ? 'inProgress' : 'pending';
 
             const statusStyles = {
-                complete: 'border-primary bg-primary/10',
+                complete: 'border-green-600 bg-green-500/10',
                 inProgress: 'border-yellow-500 bg-yellow-500/10',
                 pending: 'border-border bg-muted/50 opacity-60'
             }

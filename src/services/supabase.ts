@@ -147,6 +147,9 @@ async function insertStageEvent(event: StageEvent) {
 
 export async function updateJourney(journey: CustomerJourney): Promise<void> {
   const supabase = createServerClient();
+  
+  const latestEvent = journey.history[journey.history.length - 1];
+
   // Step 1: Upsert into raw_data
   const { error: rawDataError } = await supabase.from('raw_data').upsert(
     {
@@ -165,27 +168,20 @@ export async function updateJourney(journey: CustomerJourney): Promise<void> {
     throw new Error('Supabase upsert failed for raw_data.');
   }
 
-  // Step 2: Determine final GMV if journey is closing
-  let finalGmv = null;
-    if (journey.isClosed) {
-        const closureEvent = journey.history.find(
-            (event): event is ClosureMeetingData =>
-                event.stage.subTask === 'Closure Meeting (BA Collection)'
-        );
-        if (closureEvent) {
-            finalGmv = closureEvent.finalGmv;
-        }
-    }
+  // Step 2: Determine final and quoted GMV
+  let finalGmv = journey.finalGmv;
+  if (journey.isClosed && latestEvent?.stage.subTask === 'Closure Meeting (BA Collection)') {
+      finalGmv = (latestEvent as ClosureMeetingData).finalGmv;
+  }
     
   let quotedGmv = journey.quotedGmv;
-    const recceEvent = journey.history.find(
-        (event): event is RecceFormSubmissionData =>
-            event.stage.subTask === 'Recce Form Submission'
-    );
-    if (recceEvent && recceEvent.expectedGmv) {
-        quotedGmv = recceEvent.expectedGmv;
-    }
-
+  const recceEvent = journey.history.find(
+      (event): event is RecceFormSubmissionData =>
+          event.stage.subTask === 'Recce Form Submission'
+  );
+  if (recceEvent && recceEvent.expectedGmv) {
+      quotedGmv = recceEvent.expectedGmv;
+  }
 
   // Step 3: Upsert into journey_data
   const { error: journeyDataError } = await supabase.from('journey_data').upsert(
@@ -207,7 +203,6 @@ export async function updateJourney(journey: CustomerJourney): Promise<void> {
   }
 
   // Step 4: Insert the latest event into the corresponding stage table
-  const latestEvent = journey.history[journey.history.length - 1];
   if (latestEvent) {
     await insertStageEvent(latestEvent);
   }
@@ -349,15 +344,14 @@ export async function getAllJourneys(): Promise<CustomerJourney[]> {
         historyByCrn[crn].sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime());
     }
 
-    const allCrns = Array.from(rawDataMap.keys());
+    const allCrns = Array.from(new Set([...rawDataMap.keys(), ...journeyDataMap.keys()]));
 
     return allCrns.map((crn): CustomerJourney | null => {
         const rawInfo = rawDataMap.get(crn);
-        if (!rawInfo) return null;
-
         const journeyInfo = journeyDataMap.get(crn);
         const journeyHistory = historyByCrn[crn] || [];
-        const lastEvent = journeyHistory.length > 0 ? journeyHistory[journeyHistory.length - 1] : null;
+
+        if (!rawInfo && !journeyInfo) return null;
 
         let currentStage: Omit<StageRef, 'crn'>;
         let isClosed = false;
@@ -366,43 +360,32 @@ export async function getAllJourneys(): Promise<CustomerJourney[]> {
             currentStage = {
                 task: journeyInfo.current_task as Task,
                 subTask: journeyInfo.current_subtask as SubTask,
-                city: rawInfo.city,
+                city: rawInfo?.city || journeyInfo.city || 'N/A',
             };
             isClosed = journeyInfo.is_closed;
-        } else if (lastEvent) {
-             const { task, subTask } = lastEvent.stage;
-             const subTaskArray = stageMap[task];
-             const currentSubTaskIndex = subTaskArray.indexOf(subTask);
-             
-             if (currentSubTaskIndex < subTaskArray.length - 1) {
-                 currentStage = { task, subTask: subTaskArray[currentSubTaskIndex + 1], city: rawInfo.city };
-             } else {
-                 const currentTaskIndex = tasks.indexOf(task);
-                 if (currentTaskIndex < tasks.length - 1) {
-                     const nextTask = tasks[currentTaskIndex + 1];
-                     currentStage = { task: nextTask, subTask: stageMap[nextTask][0], city: rawInfo.city };
-                 } else {
-                     currentStage = lastEvent.stage;
-                     isClosed = true;
-                 }
-             }
         } else {
-            currentStage = { task: 'Recce', subTask: 'Recce Form Submission', city: rawInfo.city };
+             // Fallback for journeys that might only exist in history
+            const lastEvent = journeyHistory.length > 0 ? journeyHistory[journeyHistory.length - 1] : null;
+            if (lastEvent) {
+                currentStage = lastEvent.stage; // This is not perfect, but a reasonable fallback.
+            } else {
+                 currentStage = { task: 'Recce', subTask: 'Recce Form Submission', city: rawInfo?.city || 'N/A' };
+            }
         }
 
         return {
             crn: crn,
-            city: rawInfo.city,
-            customerName: rawInfo.customer_name,
-            customerEmail: rawInfo.customer_email,
-            customerPhone: rawInfo.customer_phone,
-            gmv: rawInfo.gmv,
+            city: rawInfo?.city || journeyInfo?.city || 'N/A',
+            customerName: rawInfo?.customer_name,
+            customerEmail: rawInfo?.customer_email,
+            customerPhone: rawInfo?.customer_phone,
+            gmv: rawInfo?.gmv,
             history: journeyHistory,
             currentStage: currentStage,
             isClosed: isClosed,
-            quotedGmv: journeyInfo?.quoted_gmv ?? rawInfo.gmv,
+            quotedGmv: journeyInfo?.quoted_gmv ?? rawInfo?.gmv,
             finalGmv: journeyInfo?.final_gmv,
-            createdAt: rawInfo.timestamp,
+            createdAt: rawInfo?.timestamp,
         };
     }).filter((j): j is CustomerJourney => j !== null);
 }
