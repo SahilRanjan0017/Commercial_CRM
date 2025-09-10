@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import { useState, useEffect } from 'react';
@@ -21,7 +22,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { supabase } from '@/lib/supabase';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { cn } from '@/lib/utils';
-import { subMonths, startOfMonth, endOfMonth, startOfToday, endOfToday, isWithinInterval, getDate, getDaysInMonth } from 'date-fns';
+import { subMonths, startOfMonth, endOfMonth, startOfToday, endOfToday, isWithinInterval, getDate, getDaysInMonth, format } from 'date-fns';
 import ProfileLogout from '@/components/profile-logout';
 
 type JourneyFilter = Task | 'All' | 'QuotedGMV' | 'FinalGMV' | 'FirstMeeting' | 'QualifyingMeeting';
@@ -398,12 +399,12 @@ export default function Journey360Page() {
     const historyItems: TaskGmvHistoryItem[] = [];
 
     const lastRecceEvent = history
-        .filter(e => e.stage.task === 'Recce' && 'expectedGmv' in e)
+        .filter(e => e.stage.task === 'Recce' && e.stage.subTask === 'Recce Form Submission' && 'expectedGmv' in e)
         .sort((a,b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())[0] as RecceFormSubmissionData | undefined;
     historyItems.push({ task: 'Recce', gmv: lastRecceEvent?.expectedGmv ?? null, date: lastRecceEvent?.timestamp ?? null });
 
     const lastTddmEvent = history
-        .filter(e => e.stage.task === 'TDDM' && 'expectedGmv' in e)
+        .filter(e => e.stage.task === 'TDDM' && e.stage.subTask === 'TDDM Initial Meeting' && 'expectedGmv' in e)
         .sort((a,b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())[0] as TDDMInitialMeetingData | undefined;
     historyItems.push({ task: 'TDDM', gmv: lastTddmEvent?.expectedGmv ?? null, date: lastTddmEvent?.timestamp ?? null });
 
@@ -662,7 +663,7 @@ export default function Journey360Page() {
                                 <IndianRupee className="w-4 h-4 text-muted-foreground mt-1" />
                                 <div>
                                     <p className="font-medium">Quoted GMV</p>
-                                    <p className="text-muted-foreground">{selectedJourney.quotedGmv ? selectedJourney.quotedGmv.toLocaleString('en-IN') : 'N/A'}</p>
+                                    <p className="text-muted-foreground">{selectedJourney.quotedGmv ? formatGmv(selectedJourney.quotedGmv) : 'N/A'}</p>
                                 </div>
                             </div>
                             {selectedJourney.isClosed && selectedJourney.finalGmv && (
@@ -670,7 +671,7 @@ export default function Journey360Page() {
                                     <IndianRupee className="w-4 h-4 text-green-600 mt-1" />
                                     <div>
                                         <p className="font-medium">Final GMV</p>
-                                        <p className="text-muted-foreground font-semibold text-green-600">{selectedJourney.finalGmv.toLocaleString('en-IN')}</p>
+                                        <p className="text-muted-foreground font-semibold text-green-600">{formatGmv(selectedJourney.finalGmv)}</p>
                                     </div>
                                 </div>
                             )}
@@ -678,6 +679,33 @@ export default function Journey360Page() {
                     </CardContent>
                 </Card>
                 
+                 <Card>
+                    <CardHeader>
+                        <CardTitle>GMV History</CardTitle>
+                        <CardDescription>Track how the GMV evolved through the journey.</CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                        <Table>
+                            <TableHeader>
+                                <TableRow>
+                                    <TableHead>Stage</TableHead>
+                                    <TableHead>GMV</TableHead>
+                                    <TableHead>Date Logged</TableHead>
+                                </TableRow>
+                            </TableHeader>
+                            <TableBody>
+                                {taskGmvHistory.map(item => (
+                                    <TableRow key={item.task}>
+                                        <TableCell className="font-medium">{item.task === 'Final' ? 'Final (Closure)' : item.task}</TableCell>
+                                        <TableCell>{item.gmv ? formatGmv(item.gmv) : <span className="text-muted-foreground">N/A</span>}</TableCell>
+                                        <TableCell>{item.date ? format(new Date(item.date), 'PP') : <span className="text-muted-foreground">N/A</span>}</TableCell>
+                                    </TableRow>
+                                ))}
+                            </TableBody>
+                        </Table>
+                    </CardContent>
+                </Card>
+
                 <Card>
                     <CardHeader>
                         <CardTitle>Uploaded Documents</CardTitle>
@@ -725,3 +753,4 @@ export default function Journey360Page() {
     </Dialog>
   );
 }
+
