@@ -26,7 +26,8 @@ export async function signup(formData: FormData) {
 
   if (error) {
     console.error('Signup Error:', error)
-    return redirect(`/signup?message=${encodeURIComponent("Could not create user. Please try again.")}`)
+    // Redirect with the actual error message from Supabase for better debugging
+    return redirect(`/signup?message=${encodeURIComponent(error.message)}`)
   }
 
   // After successful signup, redirect to login page with a success message
