@@ -256,7 +256,7 @@ export default function OverallViewPage() {
                         </Tooltip>
                     </TooltipProvider>
                     <Link href="/journey-360">
-                        <Button variant="outline"><AreaChart className="mr-2 h-4 w-4" />Journey 360°</Button>
+                        <Button variant="outline"><AreaChart className="mr-2 h-4 w-4" />Journey 360</Button>
                     </Link>
                     <Link href="/">
                         <Button variant="outline"><HomeIcon className="mr-2 h-4 w-4" />Home</Button>

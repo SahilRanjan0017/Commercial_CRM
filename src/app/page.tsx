@@ -63,7 +63,7 @@ export default function Home() {
             <Link href="/journey-360">
               <Button variant="outline">
                 <AreaChart className="mr-2 h-4 w-4" />
-                Journey 360°
+                Journey 360
               </Button>
             </Link>
             <Link href="/">
