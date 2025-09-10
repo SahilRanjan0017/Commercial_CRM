@@ -1,75 +1,35 @@
+import { NextRequest, NextResponse } from 'next/server'
+import { createClient } from '@/utils/supabase/server'
 
-import { createServerClient, type CookieOptions } from '@supabase/ssr'
-import { NextResponse, type NextRequest } from 'next/server'
+// Define which routes are protected
+const protectedRoutes = ['/','/journey-360','/are','/range-calculator', '/overall-view']
 
-export async function middleware(request: NextRequest) {
-  let response = NextResponse.next({
-    request: {
-      headers: request.headers,
-    },
-  })
+export async function middleware(req: NextRequest) {
+  const supabase = createClient()
 
-  const supabase = createServerClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-    {
-      cookies: {
-        get(name: string) {
-          return request.cookies.get(name)?.value
-        },
-        set(name: string, value: string, options: CookieOptions) {
-          request.cookies.set({
-            name,
-            value,
-            ...options,
-          })
-          response = NextResponse.next({
-            request: {
-              headers: request.headers,
-            },
-          })
-          response.cookies.set({
-            name,
-            value,
-            ...options,
-          })
-        },
-        remove(name: string, options: CookieOptions) {
-          request.cookies.set({
-            name,
-            value: '',
-            ...options,
-          })
-          response = NextResponse.next({
-            request: {
-              headers: request.headers,
-            },
-          })
-          response.cookies.set({
-            name,
-            value: '',
-            ...options,
-          })
-        },
-      },
-    }
-  )
+  // Get user session from Supabase
+  const { data: { user }, error } = await supabase.auth.getUser()
 
-  const { data: { user } } = await supabase.auth.getUser()
+  const url = req.nextUrl.clone()
+  const isProtectedRoute = protectedRoutes.some(path => url.pathname === path)
 
-  // if user is not signed in and the current path is not /login or /signup, redirect the user to the login page.
-  if (!user && !['/login', '/signup', '/auth/confirm'].includes(request.nextUrl.pathname)) {
-    return NextResponse.redirect(new URL('/login', request.url))
+  // if user is not logged in and is trying to access a protected route
+  if (!user && isProtectedRoute) {
+    url.pathname = '/login'
+    return NextResponse.redirect(url)
+  }
+  
+  // if user is logged in and tries to access login or signup, redirect to home
+  if (user && (url.pathname === '/login' || url.pathname === '/signup')) {
+      url.pathname = '/'
+      return NextResponse.redirect(url)
   }
 
-  // if user is signed in and the current path is /login or /signup, redirect the user to the home page.
-  if (user && (request.nextUrl.pathname === '/login' || request.nextUrl.pathname === '/signup')) {
-    return NextResponse.redirect(new URL('/', request.url))
-  }
-
-  return response
+  // User is logged in or accessing a public route, allow access
+  return NextResponse.next()
 }
 
+// Specify which paths the middleware runs on
 export const config = {
   matcher: [
     /*
@@ -77,9 +37,9 @@ export const config = {
      * - _next/static (static files)
      * - _next/image (image optimization files)
      * - favicon.ico (favicon file)
-     * - error (error page)
+     * - auth/confirm (for email verification)
      * Feel free to modify this pattern to include more paths.
      */
-    '/((?!_next/static|_next/image|favicon.ico|error).*)',
+    '/((?!_next/static|_next/image|favicon.ico|auth/confirm).*)',
   ],
 }
