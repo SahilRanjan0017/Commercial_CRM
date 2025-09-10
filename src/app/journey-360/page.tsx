@@ -9,7 +9,7 @@ import { Badge } from '@/components/ui/badge';
 import Link from 'next/link';
 import Image from 'next/image';
 import { Button } from '@/components/ui/button';
-import { HomeIcon, Loader2, Download, AreaChart, Search, BrainCircuit, User, Mail, Phone, Calculator, FolderOpen, FileImage, Building, IndianRupee, TrendingUp, Target, CheckCircle, Percent, ArrowRight, Users, Eye, Link as LinkIcon } from 'lucide-react';
+import { HomeIcon, Loader2, Download, AreaChart, Search, BrainCircuit, User, Mail, Phone, Calculator, FolderOpen, FileText, Building, IndianRupee, TrendingUp, Target, CheckCircle, Percent, ArrowRight, Users, Eye, Link as LinkIcon } from 'lucide-react';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import type { CustomerJourney, NegotiationData, Task, RecceFormSubmissionData, TDDMInitialMeetingData, ClosureMeetingData, StageEvent, SiteVisitData, AgreementDiscussionData, AdvanceMeetingFollowUpData } from '@/types';
 import { tasks } from '@/types';
@@ -749,11 +749,11 @@ export default function Journey360Page() {
                                                 {category.files.map(file => (
                                                     <a key={file.url} href={file.url} target="_blank" rel="noopener noreferrer" className="group">
                                                         <Card className="overflow-hidden hover:shadow-lg transition-shadow">
-                                                            <div className="bg-muted flex items-center justify-center h-24 relative">
-                                                                {isImage(file.name) ? (
+                                                            <div className="bg-muted flex items-center justify-center h-32 relative">
+                                                                {isImage(file.url) ? (
                                                                     <Image src={file.url} alt={file.name} layout="fill" objectFit="cover" className="transition-transform group-hover:scale-105" />
                                                                 ) : (
-                                                                    <FileImage className="w-8 h-8 text-muted-foreground"/>
+                                                                    <FileText className="w-10 h-10 text-muted-foreground"/>
                                                                 )}
                                                             </div>
                                                             <div className="p-2 border-t">
