@@ -53,5 +53,5 @@ CREATE TABLE auth.users (
 *   **`email`**: The user's email address.
 *   **`encrypted_password`**: The hashed version of the user's password. You will never see the plain-text password here.
 *   **`email_confirmed_at`**: A timestamp indicating when the user confirmed their email address. If it's `NULL`, the user has not yet verified their email.
-*   **`raw_user_meta_data`**: A JSONB column where you can store custom user data that is manageable by the user themselves (e.g., profile information like a username or avatar URL).
+*   **`raw_user_meta_data`**: A JSONB column where you can store custom user data that is manageable by the user themselves (e.g., profile information like a username or avatar URL). In this setup, it's used to store the `full_name`.
 *   **`raw_app_meta_data`**: A JSONB column for storing custom data that should only be manageable from a server-side context (e.g., roles, permissions, or subscription status).
