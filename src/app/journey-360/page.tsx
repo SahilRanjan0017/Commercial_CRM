@@ -9,7 +9,7 @@ import { Badge } from '@/components/ui/badge';
 import Link from 'next/link';
 import Image from 'next/image';
 import { Button } from '@/components/ui/button';
-import { HomeIcon, Loader2, Download, AreaChart, Search, BrainCircuit, User, Mail, Phone, Calculator, FolderOpen, FileImage, Building, IndianRupee, TrendingUp, Target, CheckCircle, Percent, ArrowRight, Users, Eye } from 'lucide-react';
+import { HomeIcon, Loader2, Download, AreaChart, Search, BrainCircuit, User, Mail, Phone, Calculator, FolderOpen, FileImage, Building, IndianRupee, TrendingUp, Target, CheckCircle, Percent, ArrowRight, Users, Eye, Link as LinkIcon } from 'lucide-react';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import type { CustomerJourney, NegotiationData, Task, RecceFormSubmissionData, TDDMInitialMeetingData, ClosureMeetingData, StageEvent, SiteVisitData, AgreementDiscussionData, AdvanceMeetingFollowUpData } from '@/types';
 import { tasks } from '@/types';
@@ -24,6 +24,8 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { cn } from '@/lib/utils';
 import { subMonths, startOfMonth, endOfMonth, startOfToday, endOfToday, isWithinInterval, getDate, getDaysInMonth, format } from 'date-fns';
 import ProfileLogout from '@/components/profile-logout';
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
+
 
 type JourneyFilter = Task | 'All' | 'QuotedGMV' | 'FinalGMV' | 'FirstMeeting' | 'QualifyingMeeting';
 
@@ -31,6 +33,12 @@ interface TaskGmvHistoryItem {
   task: string;
   gmv: number | null;
   date: string | null;
+}
+
+interface CategorizedFile {
+    stage: string;
+    subTask: string;
+    files: { name: string; url: string }[];
 }
 
 const monthFilterOptions = [
@@ -205,9 +213,6 @@ export default function Journey360Page() {
   const [monthFilter, setMonthFilter] = useState<string>('MTD');
   const [crnSearch, setCrnSearch] = useState('');
   const [selectedJourney, setSelectedJourney] = useState<CustomerJourney | null>(null);
-  const [uploadedFiles, setUploadedFiles] = useState<any[]>([]);
-  const [isFetchingFiles, setIsFetchingFiles] = useState(false);
-
 
   useEffect(() => {
     async function loadData() {
@@ -226,34 +231,8 @@ export default function Journey360Page() {
     loadData();
   }, []);
   
-  const fetchFilesForJourney = async (crn: string) => {
-      if (!crn) return;
-      setIsFetchingFiles(true);
-      setUploadedFiles([]);
-      try {
-          const { data, error } = await supabase.storage.from('commercial-files').list(crn, {
-              limit: 100,
-              offset: 0,
-              sortBy: { column: 'name', order: 'asc' },
-          });
-          if (error) throw error;
-          if (data) {
-              const filesWithUrls = data.map(file => {
-                  const { data: { publicUrl } } = supabase.storage.from('commercial-files').getPublicUrl(`${crn}/${file.name}`);
-                  return { ...file, publicUrl };
-              });
-              setUploadedFiles(filesWithUrls);
-          }
-      } catch (error) {
-          console.error("Error fetching files:", error);
-      } finally {
-          setIsFetchingFiles(false);
-      }
-  };
-  
   const openJourneyDetails = (journey: CustomerJourney) => {
       setSelectedJourney(journey);
-      fetchFilesForJourney(journey.crn);
   };
 
   const getDateRangeForFilter = (filter: string): { start: Date; end: Date } => {
@@ -435,6 +414,36 @@ export default function Journey360Page() {
       return historyItems;
   };
   const taskGmvHistory = selectedJourney ? getTaskGmvHistory(selectedJourney.history) : [];
+
+  const getCategorizedFiles = (history: StageEvent[]): CategorizedFile[] => {
+        const fileMap: Record<string, { stage: string; subTask: string; files: { name: string; url: string }[] }> = {};
+
+        history.forEach(event => {
+            const files: { name: string; url: string }[] = [];
+            const key = `${event.stage.task} - ${event.stage.subTask}`;
+
+            if ('drawingFile' in event && event.drawingFile) {
+                files.push({ name: `Drawing - ${event.stage.subTask}`, url: event.drawingFile });
+            }
+            if ('files' in event && event.files) {
+                files.push({ name: `Attachment - ${event.stage.subTask}`, url: event.files });
+            }
+
+            if (files.length > 0) {
+                if (!fileMap[key]) {
+                    fileMap[key] = {
+                        stage: event.stage.task,
+                        subTask: event.stage.subTask,
+                        files: []
+                    };
+                }
+                fileMap[key].files.push(...files);
+            }
+        });
+
+        return Object.values(fileMap);
+    };
+    const categorizedFiles = selectedJourney ? getCategorizedFiles(selectedJourney.history) : [];
 
   const formatGmv = (value: number) => {
     if (value >= 10000000) {
@@ -725,31 +734,37 @@ export default function Journey360Page() {
                 <Card>
                     <CardHeader>
                         <CardTitle>Uploaded Documents</CardTitle>
-                        <CardDescription>All files uploaded during this journey.</CardDescription>
+                        <CardDescription>All files uploaded during this journey, grouped by stage.</CardDescription>
                     </CardHeader>
                     <CardContent>
-                         {isFetchingFiles ? (
-                            <div className="flex items-center justify-center h-24">
-                                <Loader2 className="mr-2 h-6 w-6 animate-spin" />
-                                <span>Loading files...</span>
-                            </div>
-                        ) : uploadedFiles.length > 0 ? (
-                           <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4">
-                               {uploadedFiles.map(file => (
-                                   <a key={file.id} href={file.publicUrl} target="_blank" rel="noopener noreferrer" className="group">
-                                       <Card className="overflow-hidden hover:shadow-lg transition-shadow">
-                                           <div className="bg-muted flex items-center justify-center h-32 relative">
-                                                {isImage(file.name) ? (
-                                                    <Image src={file.publicUrl} alt={file.name} layout="fill" objectFit="cover" className="transition-transform group-hover:scale-105" />
-                                                ) : (
-                                                    <FileImage className="w-10 h-10 text-muted-foreground"/>
-                                                )}
-                                           </div>
-                                            <p className="text-xs font-medium p-2 truncate group-hover:text-primary">{file.name}</p>
-                                       </Card>
-                                   </a>
-                               ))}
-                           </div>
+                        {categorizedFiles.length > 0 ? (
+                             <Accordion type="multiple" className="w-full" defaultValue={categorizedFiles.map(c => c.subTask)}>
+                                {categorizedFiles.map(category => (
+                                    <AccordionItem value={category.subTask} key={category.subTask}>
+                                        <AccordionTrigger>{category.stage} - {category.subTask}</AccordionTrigger>
+                                        <AccordionContent>
+                                            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4 pt-2">
+                                                {category.files.map(file => (
+                                                    <a key={file.url} href={file.url} target="_blank" rel="noopener noreferrer" className="group">
+                                                        <Card className="overflow-hidden hover:shadow-lg transition-shadow">
+                                                            <div className="bg-muted flex items-center justify-center h-24 relative">
+                                                                {isImage(file.name) ? (
+                                                                    <Image src={file.url} alt={file.name} layout="fill" objectFit="cover" className="transition-transform group-hover:scale-105" />
+                                                                ) : (
+                                                                    <FileImage className="w-8 h-8 text-muted-foreground"/>
+                                                                )}
+                                                            </div>
+                                                            <div className="p-2 border-t">
+                                                                <p className="text-xs font-medium truncate group-hover:text-primary">{file.name}</p>
+                                                            </div>
+                                                        </Card>
+                                                    </a>
+                                                ))}
+                                            </div>
+                                        </AccordionContent>
+                                    </AccordionItem>
+                                ))}
+                            </Accordion>
                         ) : (
                             <div className="text-center text-muted-foreground h-24 flex items-center justify-center">
                                 No documents have been uploaded for this journey yet.
