@@ -27,7 +27,7 @@ export async function signup(formData: FormData) {
   }
 
   // After successful signup, redirect to login page with a success message
-  return redirect(`/login?message=${encodeURIComponent("Check email to continue sign in process")}`)
+  return redirect(`/login?message=${encodeURIComponent("Signup successful! Please check your email to verify your account before logging in.")}`)
 }
 
 export async function login(formData: FormData) {
