@@ -1,45 +1,87 @@
-import { NextRequest, NextResponse } from 'next/server'
-import { createClient } from '@/utils/supabase/server'
-
-// Define which routes are protected
-const protectedRoutes = ['/','/journey-360','/are','/range-calculator', '/overall-view']
+import { NextResponse } from 'next/server'
+import type { NextRequest } from 'next/server'
+import { createServerClient, type CookieOptions } from '@supabase/ssr'
 
 export async function middleware(req: NextRequest) {
-  const supabase = createClient()
+  let res = NextResponse.next({
+    request: {
+      headers: req.headers,
+    },
+  })
 
-  // Get user session from Supabase
-  const { data: { user }, error } = await supabase.auth.getUser()
+  const supabase = createServerClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    {
+      cookies: {
+        get(name: string) {
+          return req.cookies.get(name)?.value
+        },
+        set(name: string, value: string, options: CookieOptions) {
+          req.cookies.set({
+            name,
+            value,
+            ...options,
+          })
+          res = NextResponse.next({
+            request: {
+              headers: req.headers,
+            },
+          })
+          res.cookies.set({
+            name,
+            value,
+            ...options,
+          })
+        },
+        remove(name: string, options: CookieOptions) {
+          req.cookies.set({
+            name,
+            value: '',
+            ...options,
+          })
+          res = NextResponse.next({
+            request: {
+              headers: req.headers,
+            },
+          })
+          res.cookies.set({
+            name,
+            value: '',
+            ...options,
+          })
+        },
+      },
+    }
+  )
+
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
 
   const url = req.nextUrl.clone()
-  const isProtectedRoute = protectedRoutes.some(path => url.pathname === path)
 
-  // if user is not logged in and is trying to access a protected route
+  const protectedRoutes = ['/', '/journey-360', '/are', '/range-calculator', '/overall-view']
+  const isProtectedRoute = protectedRoutes.includes(url.pathname)
+
+  // If user not logged in & trying to visit protected page → redirect to /login
   if (!user && isProtectedRoute) {
     url.pathname = '/login'
     return NextResponse.redirect(url)
   }
-  
-  // if user is logged in and tries to access login or signup, redirect to home
+
+  // If logged in & trying to go to /login or /signup → redirect home
   if (user && (url.pathname === '/login' || url.pathname === '/signup')) {
-      url.pathname = '/'
-      return NextResponse.redirect(url)
+    url.pathname = '/'
+    return NextResponse.redirect(url)
   }
 
-  // User is logged in or accessing a public route, allow access
-  return NextResponse.next()
+  return res
 }
 
-// Specify which paths the middleware runs on
+// Run middleware on all routes except static files, images, favicon, etc.
 export const config = {
   matcher: [
-    /*
-     * Match all request paths except for the ones starting with:
-     * - _next/static (static files)
-     * - _next/image (image optimization files)
-     * - favicon.ico (favicon file)
-     * - auth/confirm (for email verification)
-     * Feel free to modify this pattern to include more paths.
-     */
     '/((?!_next/static|_next/image|favicon.ico|auth/confirm).*)',
   ],
 }
