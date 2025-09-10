@@ -1,7 +1,7 @@
 
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
@@ -212,6 +212,8 @@ export default function Journey360Page() {
   const [monthFilter, setMonthFilter] = useState<string>('MTD');
   const [crnSearch, setCrnSearch] = useState('');
   const [selectedJourney, setSelectedJourney] = useState<CustomerJourney | null>(null);
+  const [dashboardData, setDashboardData] = useState<any>(null);
+
 
   useEffect(() => {
     async function loadData() {
@@ -229,6 +231,13 @@ export default function Journey360Page() {
     }
     loadData();
   }, []);
+
+  useEffect(() => {
+    // Defer calculation until client-side mount
+    if (!loading) {
+      setDashboardData(getDashboardData());
+    }
+  }, [loading, cityFilter, monthFilter, journeys]);
   
   const openJourneyDetails = (journey: CustomerJourney) => {
       setSelectedJourney(journey);
@@ -380,7 +389,6 @@ export default function Journey360Page() {
       return { achievedCounts, quotedGmv, finalGmv, monthProgressRatio, targetGmv };
   }
   
-  const { achievedCounts, quotedGmv, finalGmv, monthProgressRatio, targetGmv } = getDashboardData();
   const isImage = (fileName: string) => /\.(jpe?g|png|gif|webp)$/i.test(fileName);
   
   const getTaskGmvHistory = (history: StageEvent[]): TaskGmvHistoryItem[] => {
@@ -567,12 +575,14 @@ export default function Journey360Page() {
                     </div>
                 </CardHeader>
                 <CardContent className="space-y-4">
+                     {dashboardData ? (
+                     <>
                      <div className="space-y-2">
                         <h4 className="text-md font-semibold text-center text-muted-foreground">GMV</h4>
                         <div className="grid grid-cols-3 gap-4">
-                             <DashboardCard title="Target GMV" value={formatGmv(targetGmv)} />
-                             <DashboardCard title="Quoted GMV" value={formatGmv(quotedGmv)} onClick={() => setActiveFilter('QuotedGMV')} isActive={activeFilter === 'QuotedGMV'} />
-                             <DashboardCard title="Final GMV" value={formatGmv(finalGmv)} onClick={() => setActiveFilter('FinalGMV')} isActive={activeFilter === 'FinalGMV'} />
+                             <DashboardCard title="Target GMV" value={formatGmv(dashboardData.targetGmv)} />
+                             <DashboardCard title="Quoted GMV" value={formatGmv(dashboardData.quotedGmv)} onClick={() => setActiveFilter('QuotedGMV')} isActive={activeFilter === 'QuotedGMV'} />
+                             <DashboardCard title="Final GMV" value={formatGmv(dashboardData.finalGmv)} onClick={() => setActiveFilter('FinalGMV')} isActive={activeFilter === 'FinalGMV'} />
                         </div>
                     </div>
                     
@@ -581,11 +591,15 @@ export default function Journey360Page() {
                             <h4 className="text-md font-semibold text-center text-muted-foreground">{stage.replace(/([A-Z])/g, ' $1').trim()}</h4>
                             <div className="grid grid-cols-3 gap-4">
                                 <DashboardCard title="Target" value={allCitiesTargets[stage as keyof typeof allCitiesTargets].toFixed(0)} />
-                                <DashboardCard title="Achieved" value={achievedCounts[stage as keyof typeof achievedCounts]} onClick={() => setActiveFilter(stage as JourneyFilter)} isActive={activeFilter === stage} />
-                                <DashboardCard title="Prorated Target" value={(allCitiesTargets[stage as keyof typeof allCitiesTargets] * monthProgressRatio).toFixed(0)} />
+                                <DashboardCard title="Achieved" value={dashboardData.achievedCounts[stage as keyof typeof dashboardData.achievedCounts]} onClick={() => setActiveFilter(stage as JourneyFilter)} isActive={activeFilter === stage} />
+                                <DashboardCard title="Prorated Target" value={(allCitiesTargets[stage as keyof typeof allCitiesTargets] * dashboardData.monthProgressRatio).toFixed(0)} />
                             </div>
                         </div>
                     ))}
+                    </>
+                    ) : (
+                        <div className="flex justify-center items-center p-4"><Loader2 className="mr-2 h-4 w-4 animate-spin"/>Loading dashboard...</div>
+                    )}
                 </CardContent>
             </Card>
         </div>
@@ -783,9 +797,5 @@ export default function Journey360Page() {
     </Dialog>
   );
 }
-
-    
-
-    
 
     

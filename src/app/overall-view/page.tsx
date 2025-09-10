@@ -78,7 +78,7 @@ export default function OverallViewPage() {
     const [journeys, setJourneys] = useState<CustomerJourney[]>([]);
     const [loading, setLoading] = useState(true);
     const [monthFilter, setMonthFilter] = useState<string>('MTD');
-    const [performanceData, setPerformanceData] = useState<CityPerformanceData[]>([]);
+    const [performanceData, setPerformanceData] = useState<CityPerformanceData[] | null>(null);
 
     useEffect(() => {
         async function loadData() {
@@ -181,7 +181,7 @@ export default function OverallViewPage() {
     };
 
     const grandTotal = useMemo(() => {
-        if (!performanceData || performanceData.length === 0) return null;
+        if (!performanceData) return null;
 
         const totals: Omit<CityPerformanceData, 'city'> = {
             firstMeetings: { achieved: 0, target: 0, mtdt: 0, tva: 0 },
@@ -296,7 +296,7 @@ export default function OverallViewPage() {
                         </div>
                     </CardHeader>
                     <CardContent>
-                        {loading ? (
+                        {loading || !performanceData ? (
                             <div className="flex justify-center items-center p-8"><Loader2 className="mr-2 h-8 w-8 animate-spin"/>Loading data...</div>
                         ) : (
                             <Table>
@@ -413,3 +413,5 @@ export default function OverallViewPage() {
         </div>
     );
 }
+
+    
