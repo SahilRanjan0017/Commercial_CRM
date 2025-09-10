@@ -213,105 +213,152 @@ export async function updateJourney(journey: CustomerJourney): Promise<void> {
   }
 }
 
+function rehydrateEvent(event: any, task: Task): StageEvent {
+    const baseEvent: Omit<BaseStageData, 'stage'> = {
+        id: event.event_id,
+        user: event.user,
+        timestamp: event.timestamp,
+        nextStepBrief: event.next_step_brief,
+        nextStepEta: event.next_step_eta,
+        files: event.files,
+    };
+
+    const stage: StageRef = {
+        crn: event.crn,
+        city: event.city,
+        task: task,
+        subTask: event.subtask as SubTask,
+    };
+    
+    let specificData: any = {};
+    
+    switch (task) {
+        case 'Recce':
+            if (stage.subTask === 'Recce Form Submission') {
+                specificData = {
+                    dateOfRecce: event.date_of_recce,
+                    attendee: event.attendee,
+                    recceTemplateUrl: event.recce_template_url,
+                    projectStartTimeline: event.project_start_timeline,
+                    expectedGmv: event.expected_gmv,
+                    hasDrawing: event.has_drawing ? 'Yes' : 'No',
+                    drawingFile: event.drawing_file,
+                    architecturalPreference: event.architectural_preference,
+                    siteConditionNotes: event.site_condition_notes,
+                    expectedClosureDate: event.expected_closure_date,
+                };
+            } else if (stage.subTask === 'Post Recce Follow Up') {
+                specificData = {
+                    followUpNumber: event.follow_up_number,
+                    expectedAction: event.expected_action,
+                    mom: event.mom,
+                };
+            }
+            break;
+        case 'TDDM':
+             if (stage.subTask === 'TDDM Initial Meeting') {
+                specificData = {
+                    tddmDate: event.tddm_date,
+                    meetingLocation: event.meeting_location,
+                    attendance: event.attendance,
+                    attendeeBnb: event.attendee_bnb,
+                    osEmail: event.os_email,
+                    duration: event.duration,
+                    expectedClosureDate: event.expected_closure_date,
+                    expectedGmv: event.expected_gmv,
+                    drawingShared: event.drawing_shared ? 'Yes' : 'No',
+                    drawingFile: event.drawing_file,
+                    boqShared: event.boq_shared ? 'Yes' : 'No',
+                    byeLawsDiscussed: event.bye_laws_discussed ? 'Yes' : 'No',
+                    sampleFlowPlansDiscussed: event.sample_flow_plans ? 'Yes' : 'No',
+                    roiDiscussed: event.roi_discussed ? 'Yes' : 'No',
+                    customerLikes: event.customer_likes,
+                    mom: event.mom,
+                };
+            } else if (stage.subTask === 'Post TDDM Follow Up') {
+                specificData = {
+                    followUpNumber: event.follow_up_number,
+                    expectedAction: event.expected_action,
+                    mom: event.mom,
+                };
+            }
+            break;
+        case 'Advance Meeting':
+            if (stage.subTask === 'Negotiation') {
+                specificData = { negotiationNumber: event.negotiation_number, expectedGmv: event.expected_gmv, keyConcern: event.key_concern, solutionRecommends: event.solution_recommends };
+            } else if (stage.subTask === 'Site Visit') {
+                specificData = { siteVisitDate: event.site_visit_date, attendees: event.attendees, expectedGmv: event.expected_gmv };
+            } else if (stage.subTask === 'Agreement Discussion') {
+                specificData = { agreementShared: event.agreement_shared ? 'Yes' : 'No', expectedSigningDate: event.expected_signing_date, concernsRaised: event.concerns_raised, expectedGmv: event.expected_gmv };
+            } else if (stage.subTask === 'Closure Follow Up') {
+                specificData = { followUpNumber: event.follow_up_number, expectedAction: event.expected_action, expectedGmv: event.expected_gmv };
+            }
+            break;
+        case 'Closure':
+            if (stage.subTask === 'Closure Meeting (BA Collection)') {
+                specificData = { confirmationMethod: event.confirmation_method, finalGmv: event.final_gmv };
+            } else if (stage.subTask === 'Post-Closure Follow Up') {
+                specificData = { agenda: event.agenda };
+            }
+            break;
+    }
+
+    return { ...baseEvent, stage, ...specificData } as StageEvent;
+}
+
 export async function getAllJourneys(): Promise<CustomerJourney[]> {
     const supabase = createServerClient();
-    // 1. Fetch all event data from all stage tables AND all raw data
-    const [recceHistory, tddmHistory, advanceMeetingHistory, closureHistory, rawDataResponse] = await Promise.all([
+    const [recceHistory, tddmHistory, advanceMeetingHistory, closureHistory, rawDataResponse, journeyDataResponse] = await Promise.all([
         supabase.from('recce_data').select('*'),
         supabase.from('tddm_data').select('*'),
         supabase.from('advance_meeting').select('*'),
         supabase.from('closure_data').select('*'),
         supabase.from('raw_data').select('*'),
+        supabase.from('journey_data').select('*')
     ]);
-    
-    if (recceHistory.error || tddmHistory.error || advanceMeetingHistory.error || closureHistory.error || rawDataResponse.error) {
-        console.error("Error fetching data:", recceHistory.error || tddmHistory.error || advanceMeetingHistory.error || closureHistory.error || rawDataResponse.error);
+
+    const errors = [recceHistory.error, tddmHistory.error, advanceMeetingHistory.error, closureHistory.error, rawDataResponse.error, journeyDataResponse.error].filter(Boolean);
+    if (errors.length > 0) {
+        console.error("Error fetching data:", errors);
         throw new Error("Could not fetch journey data from Supabase.");
     }
+    
+    const rawDataMap = new Map((rawDataResponse.data || []).map(r => [r.crn, r]));
+    const journeyDataMap = new Map((journeyDataResponse.data || []).map(j => [j.crn, j]));
+    
+    const historyByCrn: Record<string, StageEvent[]> = {};
+    
+    (recceHistory.data || []).forEach(e => {
+        if (!historyByCrn[e.crn]) historyByCrn[e.crn] = [];
+        historyByCrn[e.crn].push(rehydrateEvent(e, 'Recce'));
+    });
+    (tddmHistory.data || []).forEach(e => {
+        if (!historyByCrn[e.crn]) historyByCrn[e.crn] = [];
+        historyByCrn[e.crn].push(rehydrateEvent(e, 'TDDM'));
+    });
+    (advanceMeetingHistory.data || []).forEach(e => {
+        if (!historyByCrn[e.crn]) historyByCrn[e.crn] = [];
+        historyByCrn[e.crn].push(rehydrateEvent(e, 'Advance Meeting'));
+    });
+    (closureHistory.data || []).forEach(e => {
+        if (!historyByCrn[e.crn]) historyByCrn[e.crn] = [];
+        historyByCrn[e.crn].push(rehydrateEvent(e, 'Closure'));
+    });
 
-    const allHistoryEvents = [
-        ...(recceHistory.data || []).map(e => ({ ...e, task: 'Recce' })),
-        ...(tddmHistory.data || []).map(e => ({ ...e, task: 'TDDM' })),
-        ...(advanceMeetingHistory.data || []).map(e => ({ ...e, task: 'Advance Meeting' })),
-        ...(closureHistory.data || []).map(e => ({ ...e, task: 'Closure' }))
-    ];
-    
-    // Get a unique list of all CRNs from history and raw data
-    const historyCrns = allHistoryEvents.map(e => e.crn);
-    const rawDataCrns = (rawDataResponse.data || []).map(r => r.crn);
-    const allCrns = [...new Set([...historyCrns, ...rawDataCrns])];
-    
-    if (allCrns.length === 0) {
-        return [];
+    for (const crn in historyByCrn) {
+        historyByCrn[crn].sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime());
     }
 
-    // Fetch all journey_data for all unique CRNs
-    const { data: journeysData, error: journeysError } = await supabase
-        .from('journey_data')
-        .select(`*`)
-        .in('crn', allCrns);
+    const allCrns = Array.from(rawDataMap.keys());
 
-    if (journeysError) {
-        console.error('Error fetching journeys:', journeysError);
-        throw new Error('Could not fetch journeys from Supabase.');
-    }
-
-    // Create maps for easy lookup
-    const historyByCrn = allHistoryEvents.reduce((acc, event) => {
-        if (!acc[event.crn]) acc[event.crn] = [];
-        acc[event.crn].push(event);
-        return acc;
-    }, {} as Record<string, any[]>);
-
-    const journeyDataByCrn = (journeysData || []).reduce((acc, j) => {
-        acc[j.crn] = j;
-        return acc;
-    }, {} as Record<string, (typeof journeysData)[0]>);
-    
-    const rawDataByCrn = (rawDataResponse.data || []).reduce((acc, r) => {
-        acc[r.crn] = r;
-        return acc;
-    }, {} as Record<string, (typeof rawDataResponse.data)[0]>);
-
-
-    // Construct the final CustomerJourney array
     return allCrns.map((crn): CustomerJourney | null => {
-        const journeyInfo = journeyDataByCrn[crn];
-        const rawInfo = rawDataByCrn[crn];
-        const journeyHistoryRaw = historyByCrn[crn] || [];
-        
-        if(!rawInfo) return null; // Every journey must have raw_info to be valid
+        const rawInfo = rawDataMap.get(crn);
+        if (!rawInfo) return null;
 
-        journeyHistoryRaw.sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime());
+        const journeyInfo = journeyDataMap.get(crn);
+        const journeyHistory = historyByCrn[crn] || [];
+        const lastEvent = journeyHistory.length > 0 ? journeyHistory[journeyHistory.length - 1] : null;
 
-        const journeyHistory: StageEvent[] = journeyHistoryRaw.map((event): StageEvent => {
-            const baseEvent = {
-              id: event.event_id,
-              stage: {
-                  crn: event.crn,
-                  city: event.city,
-                  task: event.task as Task,
-                  subTask: event.subtask as SubTask,
-              },
-              user: event.user,
-              timestamp: event.timestamp,
-            };
-
-            // This is where we reconstruct the full event object
-            // based on its type, which is implicitly defined by the table it came from
-            // and the subtask field.
-            const fullEvent: any = { ...baseEvent };
-            for(const key in event) {
-                if(!['id', 'crn', 'event_id', 'city', 'subtask', 'user', 'timestamp', 'task'].includes(key)) {
-                    fullEvent[key] = event[key];
-                }
-            }
-            return fullEvent as StageEvent;
-        });
-        
-        const lastEvent = journeyHistory[journeyHistory.length - 1];
-
-        // Determine current stage. Use journey_data if available, otherwise calculate from history
         let currentStage: Omit<StageRef, 'crn'>;
         let isClosed = false;
 
@@ -323,15 +370,14 @@ export async function getAllJourneys(): Promise<CustomerJourney[]> {
             };
             isClosed = journeyInfo.is_closed;
         } else if (lastEvent) {
-             const currentTask = lastEvent.stage.task;
-             const currentSubTask = lastEvent.stage.subTask;
-             const subTaskArray = stageMap[currentTask];
-             const currentSubTaskIndex = subTaskArray.indexOf(currentSubTask);
+             const { task, subTask } = lastEvent.stage;
+             const subTaskArray = stageMap[task];
+             const currentSubTaskIndex = subTaskArray.indexOf(subTask);
              
              if (currentSubTaskIndex < subTaskArray.length - 1) {
-                 currentStage = { task: currentTask, subTask: subTaskArray[currentSubTaskIndex + 1], city: rawInfo.city };
+                 currentStage = { task, subTask: subTaskArray[currentSubTaskIndex + 1], city: rawInfo.city };
              } else {
-                 const currentTaskIndex = tasks.indexOf(currentTask);
+                 const currentTaskIndex = tasks.indexOf(task);
                  if (currentTaskIndex < tasks.length - 1) {
                      const nextTask = tasks[currentTaskIndex + 1];
                      currentStage = { task: nextTask, subTask: stageMap[nextTask][0], city: rawInfo.city };
@@ -341,9 +387,7 @@ export async function getAllJourneys(): Promise<CustomerJourney[]> {
                  }
              }
         } else {
-            // New journey with no history events yet
             currentStage = { task: 'Recce', subTask: 'Recce Form Submission', city: rawInfo.city };
-            isClosed = false;
         }
 
         return {
@@ -406,7 +450,7 @@ export async function getJourney(crn: string, newJourneyDetails: NewJourneyDetai
         .from('journey_data')
         .select(`
             *,
-            raw_data:raw_data!inner(city, customer_name, customer_email, customer_phone, gmv)
+            raw_data:raw_data!inner(city, customer_name, customer_email, customer_phone, gmv, timestamp)
         `)
         .eq('crn', crn)
         .single();
@@ -420,34 +464,29 @@ export async function getJourney(crn: string, newJourneyDetails: NewJourneyDetai
             supabase.from('closure_data').select('*').eq('crn', crn)
         ]);
         
-        const allHistoryEvents = [
-            ...(recceHistory.data || []).map(e => ({ ...e, task: 'Recce' })),
-            ...(tddmHistory.data || []).map(e => ({ ...e, task: 'TDDM' })),
-            ...(advanceMeetingHistory.data || []).map(e => ({ ...e, task: 'Advance Meeting' })),
-            ...(closureHistory.data || []).map(e => ({ ...e, task: 'Closure' }))
-        ];
-
-        allHistoryEvents.sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime());
+        const historyByCrn: Record<string, StageEvent[]> = {};
         
-        const rawData = Array.isArray(journeyData.raw_data) ? journeyData.raw_data[0] : journeyData.raw_data;
-        
-        const history: StageEvent[] = allHistoryEvents.map((event): StageEvent => {
-            const baseEvent = {
-              id: event.event_id,
-              stage: { crn, city: event.city, task: event.task as Task, subTask: event.subtask as SubTask },
-              user: event.user,
-              timestamp: event.timestamp,
-            };
-
-            const fullEvent: any = { ...baseEvent };
-            for(const key in event) {
-                if(!['id', 'crn', 'event_id', 'city', 'subtask', 'user', 'timestamp', 'task'].includes(key)) {
-                    fullEvent[key] = event[key];
-                }
-            }
-            return fullEvent as StageEvent;
+        (recceHistory.data || []).forEach(e => {
+            if (!historyByCrn[e.crn]) historyByCrn[e.crn] = [];
+            historyByCrn[e.crn].push(rehydrateEvent(e, 'Recce'));
+        });
+        (tddmHistory.data || []).forEach(e => {
+            if (!historyByCrn[e.crn]) historyByCrn[e.crn] = [];
+            historyByCrn[e.crn].push(rehydrateEvent(e, 'TDDM'));
+        });
+        (advanceMeetingHistory.data || []).forEach(e => {
+            if (!historyByCrn[e.crn]) historyByCrn[e.crn] = [];
+            historyByCrn[e.crn].push(rehydrateEvent(e, 'Advance Meeting'));
+        });
+        (closureHistory.data || []).forEach(e => {
+            if (!historyByCrn[e.crn]) historyByCrn[e.crn] = [];
+            historyByCrn[e.crn].push(rehydrateEvent(e, 'Closure'));
         });
 
+        const history = historyByCrn[crn] || [];
+        history.sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime());
+        
+        const rawData = Array.isArray(journeyData.raw_data) ? journeyData.raw_data[0] : journeyData.raw_data;
 
         return {
             crn: journeyData.crn,
@@ -465,7 +504,7 @@ export async function getJourney(crn: string, newJourneyDetails: NewJourneyDetai
             isClosed: journeyData.is_closed,
             quotedGmv: journeyData.quoted_gmv,
             finalGmv: journeyData.final_gmv,
-            createdAt: journeyData.timestamp, // Assuming journey_data timestamp is creation time
+            createdAt: rawData?.timestamp,
         };
     }
 
@@ -516,5 +555,3 @@ export async function getJourney(crn: string, newJourneyDetails: NewJourneyDetai
 
     return newJourney;
 }
-
-    
