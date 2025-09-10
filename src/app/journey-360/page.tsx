@@ -28,7 +28,7 @@ import ProfileLogout from '@/components/profile-logout';
 type JourneyFilter = Task | 'All' | 'QuotedGMV' | 'FinalGMV' | 'FirstMeeting' | 'QualifyingMeeting';
 
 interface TaskGmvHistoryItem {
-  task: Task | 'Final';
+  task: string;
   gmv: number | null;
   date: string | null;
 }
@@ -296,7 +296,7 @@ export default function Journey360Page() {
 
     if (activeFilter === 'QuotedGMV') {
         const hasQuotedGmvInPeriod = !journey.isClosed && typeof journey.quotedGmv === 'number' && journey.quotedGmv >= 1 &&
-            journey.history.some(e => isWithinInterval(new Date(e.timestamp), dateRange) && 'expectedGmv' in e && e.expectedGmv > 0);
+            journey.history.some(e => isWithinInterval(new Date(e.timestamp), dateRange) && 'expectedGmv' in e && (e as any).expectedGmv > 0);
         return crnFilterMatch && cityFilterMatch && hasQuotedGmvInPeriod;
     }
 
@@ -373,10 +373,10 @@ export default function Journey360Page() {
                       }
                   }
                   
-                  if ('expectedGmv' in event && event.expectedGmv && event.expectedGmv > 0) hasQuotedGmvInPeriod = true;
+                  if ('expectedGmv' in event && (event as any).expectedGmv && (event as any).expectedGmv > 0) hasQuotedGmvInPeriod = true;
                   
-                  if (stageTask === 'Closure' && event.stage.subTask === 'Closure Meeting (BA Collection)' && 'finalGmv' in event && event.finalGmv && event.finalGmv > 0) {
-                      finalGmv += event.finalGmv;
+                  if (stageTask === 'Closure' && event.stage.subTask === 'Closure Meeting (BA Collection)' && 'finalGmv' in event && (event as ClosureMeetingData).finalGmv > 0) {
+                      finalGmv += (event as ClosureMeetingData).finalGmv;
                   }
               }
           });
@@ -396,27 +396,39 @@ export default function Journey360Page() {
   const isImage = (fileName: string) => /\.(jpe?g|png|gif|webp)$/i.test(fileName);
   
   const getTaskGmvHistory = (history: StageEvent[]): TaskGmvHistoryItem[] => {
-    const historyItems: TaskGmvHistoryItem[] = [];
+      const historyItems: TaskGmvHistoryItem[] = [];
 
-    const lastRecceEvent = history
-        .filter(e => e.stage.task === 'Recce' && e.stage.subTask === 'Recce Form Submission' && 'expectedGmv' in e)
-        .sort((a,b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())[0] as RecceFormSubmissionData | undefined;
-    historyItems.push({ task: 'Recce', gmv: lastRecceEvent?.expectedGmv ?? null, date: lastRecceEvent?.timestamp ?? null });
+      const findLastEventWithGmv = (task: Task, subTask: string, gmvField: 'expectedGmv' | 'finalGmv') => {
+          const events = history
+              .filter(e => e.stage.task === task && e.stage.subTask === subTask && gmvField in e)
+              .sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
+          
+          if (events.length > 0) {
+              const event = events[0] as any;
+              return {
+                  gmv: typeof event[gmvField] === 'string' ? parseFloat(event[gmvField]) : event[gmvField],
+                  date: event.timestamp,
+              };
+          }
+          return { gmv: null, date: null };
+      };
 
-    const lastTddmEvent = history
-        .filter(e => e.stage.task === 'TDDM' && e.stage.subTask === 'TDDM Initial Meeting' && 'expectedGmv' in e)
-        .sort((a,b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())[0] as TDDMInitialMeetingData | undefined;
-    historyItems.push({ task: 'TDDM', gmv: lastTddmEvent?.expectedGmv ?? null, date: lastTddmEvent?.timestamp ?? null });
+      const recce = findLastEventWithGmv('Recce', 'Recce Form Submission', 'expectedGmv');
+      historyItems.push({ task: 'Recce', gmv: recce.gmv, date: recce.date });
 
-    const lastAdvanceEvent = history
-        .filter(e => e.stage.task === 'Advance Meeting' && 'expectedGmv' in e)
-        .sort((a,b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())[0] as (NegotiationData | SiteVisitData | AgreementDiscussionData | AdvanceMeetingFollowUpData) | undefined;
-    historyItems.push({ task: 'Advance Meeting', gmv: lastAdvanceEvent?.expectedGmv ?? null, date: lastAdvanceEvent?.timestamp ?? null });
+      const tddm = findLastEventWithGmv('TDDM', 'TDDM Initial Meeting', 'expectedGmv');
+      historyItems.push({ task: 'TDDM', gmv: tddm.gmv, date: tddm.date });
 
-    const closureEvent = history.find(e => e.stage.subTask === 'Closure Meeting (BA Collection)') as ClosureMeetingData | undefined;
-    historyItems.push({ task: 'Final', gmv: closureEvent?.finalGmv ?? null, date: closureEvent?.timestamp ?? null });
+      const negotiation = findLastEventWithGmv('Advance Meeting', 'Negotiation', 'expectedGmv');
+      historyItems.push({ task: 'Negotiation', gmv: negotiation.gmv, date: negotiation.date });
 
-    return historyItems;
+      const agreement = findLastEventWithGmv('Advance Meeting', 'Agreement Discussion', 'expectedGmv');
+      historyItems.push({ task: 'Agreement Discussion', gmv: agreement.gmv, date: agreement.date });
+      
+      const closure = findLastEventWithGmv('Closure', 'Closure Meeting (BA Collection)', 'finalGmv');
+      historyItems.push({ task: 'Final (Closure)', gmv: closure.gmv, date: closure.date });
+
+      return historyItems;
   };
   const taskGmvHistory = selectedJourney ? getTaskGmvHistory(selectedJourney.history) : [];
 
@@ -696,7 +708,7 @@ export default function Journey360Page() {
                             <TableBody>
                                 {taskGmvHistory.map(item => (
                                     <TableRow key={item.task}>
-                                        <TableCell className="font-medium">{item.task === 'Final' ? 'Final (Closure)' : item.task}</TableCell>
+                                        <TableCell className="font-medium">{item.task}</TableCell>
                                         <TableCell>{item.gmv ? formatGmv(item.gmv) : <span className="text-muted-foreground">N/A</span>}</TableCell>
                                         <TableCell>{item.date ? format(new Date(item.date), 'PP') : <span className="text-muted-foreground">N/A</span>}</TableCell>
                                     </TableRow>
@@ -753,4 +765,3 @@ export default function Journey360Page() {
     </Dialog>
   );
 }
-
