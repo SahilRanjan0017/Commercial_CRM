@@ -44,5 +44,5 @@ export async function login(formData: FormData) {
     return redirect('/login?message=Invalid credentials')
   }
 
-  redirect('/private')
+  redirect('/')
 }

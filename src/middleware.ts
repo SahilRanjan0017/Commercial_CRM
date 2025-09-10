@@ -17,7 +17,6 @@ export async function middleware(request: NextRequest) {
           return request.cookies.get(name)?.value
         },
         set(name: string, value: string, options: CookieOptions) {
-          // If the cookie is updated, update the cookies for the request and response
           request.cookies.set({
             name,
             value,
@@ -35,7 +34,6 @@ export async function middleware(request: NextRequest) {
           })
         },
         remove(name: string, options: CookieOptions) {
-          // If the cookie is removed, update the cookies for the request and response
           request.cookies.set({
             name,
             value: '',
@@ -58,24 +56,14 @@ export async function middleware(request: NextRequest) {
 
   const { data: { user } } = await supabase.auth.getUser()
 
-  // Define protected routes
-  const protectedRoutes = ['/private', '/journey-360', '/are', '/range-calculator']
-  const isProtectedRoute = protectedRoutes.some(route => 
-    request.nextUrl.pathname.startsWith(route)
-  )
+  const isAuthRoute = request.nextUrl.pathname.startsWith('/login') || request.nextUrl.pathname.startsWith('/signup');
 
-  if (!user && isProtectedRoute) {
-    // Redirect to login if trying to access a protected route without being authenticated
-    const url = request.nextUrl.clone()
-    url.pathname = '/login'
-    return NextResponse.redirect(url)
+  if (!user && !isAuthRoute) {
+    return NextResponse.redirect(new URL('/login', request.url))
   }
 
-  // Redirect authenticated users away from auth pages (login/signup)
-  if (user && (request.nextUrl.pathname.startsWith('/login') || request.nextUrl.pathname.startsWith('/signup'))) {
-    const url = request.nextUrl.clone()
-    url.pathname = '/'
-    return NextResponse.redirect(url)
+  if (user && isAuthRoute) {
+    return NextResponse.redirect(new URL('/', request.url))
   }
 
   return response
@@ -88,7 +76,8 @@ export const config = {
      * - _next/static (static files)
      * - _next/image (image optimization files)
      * - favicon.ico (favicon file)
+     * - auth routes
      */
-    '/((?!_next/static|_next/image|favicon.ico).*)',
+    '/((?!_next/static|_next/image|favicon.ico|auth/confirm|error).*)',
   ],
 }

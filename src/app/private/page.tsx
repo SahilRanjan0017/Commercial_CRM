@@ -10,6 +10,11 @@ export default async function PrivatePage() {
     redirect('/login')
   }
 
+  // This page is no longer the primary destination after login.
+  // We redirect to the home page.
+  redirect('/');
+
+  /*
   const { data: userDetails } = await supabase.from('profiles').select('*').eq('id', data.user.id).single();
 
 
@@ -29,4 +34,5 @@ export default async function PrivatePage() {
         </Button>
     </div>
     )
+  */
 }
