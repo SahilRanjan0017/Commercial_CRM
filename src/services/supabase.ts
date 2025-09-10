@@ -170,7 +170,7 @@ export async function updateJourney(journey: CustomerJourney): Promise<void> {
 
   // Step 2: Determine final and quoted GMV
   let finalGmv = journey.finalGmv;
-  if (journey.isClosed && latestEvent?.stage.subTask === 'Closure Meeting (BA Collection)') {
+  if (latestEvent?.stage.subTask === 'Closure Meeting (BA Collection)') {
       finalGmv = (latestEvent as ClosureMeetingData).finalGmv;
   }
     
@@ -360,7 +360,7 @@ export async function getAllJourneys(): Promise<CustomerJourney[]> {
             currentStage = {
                 task: journeyInfo.current_task as Task,
                 subTask: journeyInfo.current_subtask as SubTask,
-                city: rawInfo?.city || journeyInfo.city || 'N/A',
+                city: rawInfo?.city || 'N/A',
             };
             isClosed = journeyInfo.is_closed;
         } else {
@@ -383,7 +383,7 @@ export async function getAllJourneys(): Promise<CustomerJourney[]> {
             history: journeyHistory,
             currentStage: currentStage,
             isClosed: isClosed,
-            quotedGmv: journeyInfo?.quoted_gmv ?? rawInfo?.gmv,
+            quotedGmv: journeyInfo?.quoted_gmv,
             finalGmv: journeyInfo?.final_gmv,
             createdAt: rawInfo?.timestamp,
         };

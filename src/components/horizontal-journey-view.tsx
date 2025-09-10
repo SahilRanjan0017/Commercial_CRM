@@ -22,21 +22,17 @@ interface HorizontalJourneyViewProps {
 }
 
 export function HorizontalJourneyView({ history, isClosed }: HorizontalJourneyViewProps) {
-  const groupedHistory = history.reduce((acc, event) => {
+  const completedTasks = new Set<Task>();
+  history.forEach(event => {
     const task = event.stage.task;
-    if (!acc[task]) acc[task] = [];
-    acc[task].push(event);
-    return acc;
-  }, {} as Record<string, StageEvent[]>);
-
-  let completedTasksCount = 0;
-  for (const task of tasks) {
-    const events = groupedHistory[task] || [];
-    if(events.length === stageMap[task].length) {
-        completedTasksCount++;
+    const subTasksForTask = stageMap[task];
+    const eventsForTask = history.filter(h => h.stage.task === task);
+    if (eventsForTask.length === subTasksForTask.length) {
+      completedTasks.add(task);
     }
-  }
+  });
 
+  let completedTasksCount = completedTasks.size;
   if (isClosed) {
     completedTasksCount = tasks.length;
   }
@@ -57,10 +53,10 @@ export function HorizontalJourneyView({ history, isClosed }: HorizontalJourneyVi
         </div>
         <div className="grid grid-cols-4 gap-4">
           {tasks.map((task) => {
-            const events = groupedHistory[task] || [];
+            const events = history.filter(e => e.stage.task === task) || [];
             const isTaskActive = events.length > 0;
-            const isTaskComplete = events.length === stageMap[task].length || (isClosed && task !== tasks[tasks.length -1]);
-            const isJourneyClosedComplete = isClosed && task === tasks[tasks.length -1];
+            const isTaskComplete = completedTasks.has(task) || (isClosed && task !== tasks[tasks.length-1]);
+            const isJourneyClosedComplete = isClosed && task === tasks[tasks.length-1];
             
             const stageStatus = isJourneyClosedComplete || isTaskComplete ? 'complete' : isTaskActive ? 'inProgress' : 'pending';
 

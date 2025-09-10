@@ -357,7 +357,9 @@ export default function Journey360Page() {
                   }
                   
                   if (stageTask === 'Closure' && stageSubTask === 'Closure Meeting (BA Collection)') {
-                      finalGmv += (event as ClosureMeetingData).finalGmv;
+                      if ('finalGmv' in event && event.finalGmv) {
+                         finalGmv += event.finalGmv;
+                      }
                   }
               }
           });
