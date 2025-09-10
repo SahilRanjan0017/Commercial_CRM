@@ -693,15 +693,6 @@ export default function Journey360Page() {
                                     <p className="text-muted-foreground">{selectedJourney.quotedGmv ? formatGmv(selectedJourney.quotedGmv) : 'N/A'}</p>
                                 </div>
                             </div>
-                            <div className="flex items-start gap-3">
-                                <CheckCircle className={cn("w-4 h-4 mt-1", selectedJourney.finalGmv ? "text-green-600" : "text-muted-foreground")} />
-                                <div>
-                                    <p className="font-medium">Final GMV</p>
-                                    <p className={cn("font-semibold", selectedJourney.finalGmv ? "text-green-600" : "text-muted-foreground")}>
-                                        {selectedJourney.finalGmv ? formatGmv(selectedJourney.finalGmv) : 'N/A'}
-                                    </p>
-                                </div>
-                            </div>
                         </div>
                     </CardContent>
                 </Card>
