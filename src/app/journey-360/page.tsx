@@ -296,7 +296,7 @@ export default function Journey360Page() {
 
     if (activeFilter === 'QuotedGMV') {
         const hasQuotedGmvInPeriod = !journey.isClosed && typeof journey.quotedGmv === 'number' && journey.quotedGmv >= 1 &&
-            journey.history.some(e => isWithinInterval(new Date(e.timestamp), dateRange) && 'expectedGmv' in e && (e as any).expectedGmv > 0);
+            journey.history.some(e => isWithinInterval(new Date(e.timestamp), dateRange) && e.stage.task === 'Recce' && e.stage.subTask === 'Recce Form Submission');
         return crnFilterMatch && cityFilterMatch && hasQuotedGmvInPeriod;
     }
 
@@ -373,15 +373,19 @@ export default function Journey360Page() {
                       }
                   }
                   
-                  if ('expectedGmv' in event && (event as any).expectedGmv && (event as any).expectedGmv > 0) hasQuotedGmvInPeriod = true;
+                  if (stageTask === 'Recce' && stageSubTask === 'Recce Form Submission') {
+                     hasQuotedGmvInPeriod = true;
+                  }
                   
-                  if (stageTask === 'Closure' && event.stage.subTask === 'Closure Meeting (BA Collection)' && 'finalGmv' in event && (event as ClosureMeetingData).finalGmv > 0) {
+                  if (stageTask === 'Closure' && stageSubTask === 'Closure Meeting (BA Collection)') {
                       finalGmv += (event as ClosureMeetingData).finalGmv;
                   }
               }
           });
           
-          if (hasQuotedGmvInPeriod && j.quotedGmv && j.quotedGmv > 0) quotedGmv += j.quotedGmv;
+          if (hasQuotedGmvInPeriod && j.quotedGmv && j.quotedGmv > 0) {
+            quotedGmv += j.quotedGmv;
+          }
       });
 
       const today = new Date();
@@ -399,15 +403,15 @@ export default function Journey360Page() {
       const historyItems: TaskGmvHistoryItem[] = [];
 
       const findLastEventWithGmv = (task: Task, subTask: string, gmvField: 'expectedGmv' | 'finalGmv') => {
-          const events = history
-              .filter(e => e.stage.task === task && e.stage.subTask === subTask && gmvField in e)
-              .sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
+          const events = history.filter(e => e.stage.task === task && e.stage.subTask === subTask) as (StageEvent & { [key: string]: any })[];
+          const sortedEvents = events.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
           
-          if (events.length > 0) {
-              const event = events[0] as any;
+          const relevantEvent = sortedEvents.find(e => gmvField in e && e[gmvField] != null);
+          
+          if (relevantEvent) {
               return {
-                  gmv: typeof event[gmvField] === 'string' ? parseFloat(event[gmvField]) : event[gmvField],
-                  date: event.timestamp,
+                  gmv: typeof relevantEvent[gmvField] === 'string' ? parseFloat(relevantEvent[gmvField]) : relevantEvent[gmvField],
+                  date: relevantEvent.timestamp,
               };
           }
           return { gmv: null, date: null };
@@ -563,7 +567,7 @@ export default function Journey360Page() {
                             <h4 className="text-md font-semibold text-center text-muted-foreground">{stage.replace(/([A-Z])/g, ' $1').trim()}</h4>
                             <div className="grid grid-cols-3 gap-4">
                                 <DashboardCard title="Target" value={allCitiesTargets[stage as keyof typeof allCitiesTargets].toFixed(0)} />
-                                <DashboardCard title="Achieved" value={stage === 'QualifyingMeeting' ? 27 : achievedCounts[stage as keyof typeof achievedCounts]} onClick={() => setActiveFilter(stage as JourneyFilter)} isActive={activeFilter === stage} />
+                                <DashboardCard title="Achieved" value={achievedCounts[stage as keyof typeof achievedCounts]} onClick={() => setActiveFilter(stage as JourneyFilter)} isActive={activeFilter === stage} />
                                 <DashboardCard title="Prorated Target" value={(allCitiesTargets[stage as keyof typeof allCitiesTargets] * monthProgressRatio).toFixed(0)} />
                             </div>
                         </div>
@@ -678,15 +682,15 @@ export default function Journey360Page() {
                                     <p className="text-muted-foreground">{selectedJourney.quotedGmv ? formatGmv(selectedJourney.quotedGmv) : 'N/A'}</p>
                                 </div>
                             </div>
-                            {selectedJourney.isClosed && selectedJourney.finalGmv != null && (
-                                <div className="flex items-start gap-3">
-                                    <CheckCircle className="w-4 h-4 text-green-600 mt-1" />
-                                    <div>
-                                        <p className="font-medium">Final GMV</p>
-                                        <p className="font-semibold text-green-600">{formatGmv(selectedJourney.finalGmv)}</p>
-                                    </div>
+                            <div className="flex items-start gap-3">
+                                <CheckCircle className={cn("w-4 h-4 mt-1", selectedJourney.finalGmv ? "text-green-600" : "text-muted-foreground")} />
+                                <div>
+                                    <p className="font-medium">Final GMV</p>
+                                    <p className={cn("font-semibold", selectedJourney.finalGmv ? "text-green-600" : "text-muted-foreground")}>
+                                        {selectedJourney.finalGmv ? formatGmv(selectedJourney.finalGmv) : 'N/A'}
+                                    </p>
                                 </div>
-                            )}
+                            </div>
                         </div>
                     </CardContent>
                 </Card>

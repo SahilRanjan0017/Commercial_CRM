@@ -96,16 +96,16 @@ async function insertStageEvent(event: StageEvent) {
       tableName = 'advance_meeting';
        if (subTask === 'Negotiation') {
             const d = event as NegotiationData;
-            dataToInsert = { ...baseData, ...nextStepData, negotiation_number: d.negotiationNumber, key_concern: d.keyConcern, solution_recommends: d.solutionRecommends, files: d.files, expected_gmv: d.expected_gmv };
+            dataToInsert = { ...baseData, ...nextStepData, negotiation_number: d.negotiationNumber, key_concern: d.keyConcern, solution_recommends: d.solutionRecommends, files: d.files, expected_gmv: d.expectedGmv };
         } else if (subTask === 'Site Visit') {
             const d = event as SiteVisitData;
-            dataToInsert = { ...baseData, ...nextStepData, site_visit_date: d.siteVisitDate, attendees: d.attendees, files: d.files, expected_gmv: d.expected_gmv };
+            dataToInsert = { ...baseData, ...nextStepData, site_visit_date: d.siteVisitDate, attendees: d.attendees, files: d.files, expected_gmv: d.expectedGmv };
         } else if (subTask === 'Agreement Discussion') {
             const d = event as AgreementDiscussionData;
-            dataToInsert = { ...baseData, ...nextStepData, agreement_shared: d.agreementShared === 'Yes', expected_signing_date: d.expectedSigningDate, concerns_raised: d.concernsRaised, files: d.files, expected_gmv: d.expected_gmv };
+            dataToInsert = { ...baseData, ...nextStepData, agreement_shared: d.agreementShared === 'Yes', expected_signing_date: d.expectedSigningDate, concerns_raised: d.concernsRaised, files: d.files, expected_gmv: d.expectedGmv };
         } else if (subTask === 'Closure Follow Up') {
             const d = event as AdvanceMeetingFollowUpData;
-            dataToInsert = { ...baseData, ...nextStepData, follow_up_number: d.followUpNumber, expected_action: d.expectedAction, files: d.files, expected_gmv: d.expected_gmv };
+            dataToInsert = { ...baseData, ...nextStepData, follow_up_number: d.followUpNumber, expected_action: d.expectedAction, files: d.files, expected_gmv: d.expectedGmv };
         }
       break;
     case 'Closure':
@@ -176,6 +176,16 @@ export async function updateJourney(journey: CustomerJourney): Promise<void> {
             finalGmv = closureEvent.finalGmv;
         }
     }
+    
+  let quotedGmv = journey.quotedGmv;
+    const recceEvent = journey.history.find(
+        (event): event is RecceFormSubmissionData =>
+            event.stage.subTask === 'Recce Form Submission'
+    );
+    if (recceEvent && recceEvent.expectedGmv) {
+        quotedGmv = recceEvent.expectedGmv;
+    }
+
 
   // Step 3: Upsert into journey_data
   const { error: journeyDataError } = await supabase.from('journey_data').upsert(
@@ -185,7 +195,7 @@ export async function updateJourney(journey: CustomerJourney): Promise<void> {
       current_subtask: journey.currentStage.subTask,
       is_closed: journey.isClosed,
       timestamp: new Date().toISOString(),
-      quoted_gmv: journey.gmv,
+      quoted_gmv: quotedGmv,
       final_gmv: finalGmv,
     },
     { onConflict: 'crn' }
@@ -274,18 +284,30 @@ export async function getAllJourneys(): Promise<CustomerJourney[]> {
 
         journeyHistoryRaw.sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime());
 
-        const journeyHistory = journeyHistoryRaw.map(event => ({
-            id: event.event_id,
-            stage: {
-                crn: event.crn,
-                city: event.city,
-                task: event.task as Task,
-                subTask: event.subtask as SubTask,
-            },
-            user: event.user,
-            timestamp: event.timestamp,
-            ...event
-        } as StageEvent));
+        const journeyHistory: StageEvent[] = journeyHistoryRaw.map((event): StageEvent => {
+            const baseEvent = {
+              id: event.event_id,
+              stage: {
+                  crn: event.crn,
+                  city: event.city,
+                  task: event.task as Task,
+                  subTask: event.subtask as SubTask,
+              },
+              user: event.user,
+              timestamp: event.timestamp,
+            };
+
+            // This is where we reconstruct the full event object
+            // based on its type, which is implicitly defined by the table it came from
+            // and the subtask field.
+            const fullEvent: any = { ...baseEvent };
+            for(const key in event) {
+                if(!['id', 'crn', 'event_id', 'city', 'subtask', 'user', 'timestamp', 'task'].includes(key)) {
+                    fullEvent[key] = event[key];
+                }
+            }
+            return fullEvent as StageEvent;
+        });
         
         const lastEvent = journeyHistory[journeyHistory.length - 1];
 
@@ -408,6 +430,24 @@ export async function getJourney(crn: string, newJourneyDetails: NewJourneyDetai
         allHistoryEvents.sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime());
         
         const rawData = Array.isArray(journeyData.raw_data) ? journeyData.raw_data[0] : journeyData.raw_data;
+        
+        const history: StageEvent[] = allHistoryEvents.map((event): StageEvent => {
+            const baseEvent = {
+              id: event.event_id,
+              stage: { crn, city: event.city, task: event.task as Task, subTask: event.subtask as SubTask },
+              user: event.user,
+              timestamp: event.timestamp,
+            };
+
+            const fullEvent: any = { ...baseEvent };
+            for(const key in event) {
+                if(!['id', 'crn', 'event_id', 'city', 'subtask', 'user', 'timestamp', 'task'].includes(key)) {
+                    fullEvent[key] = event[key];
+                }
+            }
+            return fullEvent as StageEvent;
+        });
+
 
         return {
             crn: journeyData.crn,
@@ -416,13 +456,7 @@ export async function getJourney(crn: string, newJourneyDetails: NewJourneyDetai
             customerEmail: rawData?.customer_email,
             customerPhone: rawData?.customer_phone,
             gmv: rawData?.gmv,
-            history: allHistoryEvents.map(event => ({
-                id: event.event_id,
-                stage: { crn, city: event.city, task: event.task as Task, subTask: event.subtask as SubTask },
-                user: event.user,
-                timestamp: event.timestamp,
-                ...event
-            }) as StageEvent),
+            history: history,
             currentStage: {
                 task: journeyData.current_task as Task,
                 subTask: journeyData.current_subtask as SubTask,
