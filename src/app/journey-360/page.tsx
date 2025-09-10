@@ -1,5 +1,4 @@
 
-
 'use client';
 
 import { useState, useEffect } from 'react';
@@ -610,7 +609,7 @@ export default function Journey360Page() {
                     <Table>
                         <TableHeader>
                         <TableRow>
-                            <TableHead>CRN</TableHead>
+                            <TableHead>Customer</TableHead>
                             <TableHead>City</TableHead>
                             <TableHead>Current Stage</TableHead>
                             <TableHead>Status</TableHead>
@@ -622,9 +621,12 @@ export default function Journey360Page() {
                         ) : filteredJourneys.length > 0 ? (
                             filteredJourneys.map((journey) => (
                             <TableRow key={journey.crn}>
-                                <TableCell className="font-medium">
+                                <TableCell>
                                     <DialogTrigger asChild>
-                                        <button onClick={() => openJourneyDetails(journey)} className="text-primary hover:underline">{journey.crn}</button>
+                                        <button onClick={() => openJourneyDetails(journey)} className="text-left w-full">
+                                            <div className="font-semibold text-primary hover:underline">{journey.customerName || 'N/A'}</div>
+                                            <div className="text-xs text-muted-foreground">{journey.crn}</div>
+                                        </button>
                                     </DialogTrigger>
                                 </TableCell>
                                 <TableCell>{journey.city}</TableCell>
@@ -777,3 +779,5 @@ export default function Journey360Page() {
     </Dialog>
   );
 }
+
+    

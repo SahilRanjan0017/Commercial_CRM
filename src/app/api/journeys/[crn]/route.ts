@@ -10,6 +10,9 @@ export async function GET(
   const crn = params.crn;
   try {
     const stage = await getStageForCrn(crn);
+    if (!stage) {
+      return NextResponse.json({ message: `Journey with CRN ${crn} not found` }, { status: 404 });
+    }
     return NextResponse.json(stage);
   } catch (error) {
     console.error(`Error fetching stage for CRN ${crn}:`, error);
