@@ -12,6 +12,7 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip"
+import ProfileLogout from '@/components/profile-logout';
 
 export default function Home() {
   return (
@@ -66,12 +67,7 @@ export default function Home() {
                 Journey 360
               </Button>
             </Link>
-            <Link href="/">
-              <Button variant="outline">
-                <HomeIcon className="mr-2 h-4 w-4" />
-                Home
-              </Button>
-            </Link>
+            <ProfileLogout />
         </div>
       </div>
       <main className="relative z-10 flex-grow min-h-0">

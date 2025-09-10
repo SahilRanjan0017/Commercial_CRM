@@ -22,6 +22,7 @@ import { supabase } from '@/lib/supabase';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { cn } from '@/lib/utils';
 import { subMonths, startOfMonth, endOfMonth, startOfToday, endOfToday, isWithinInterval, getDate, getDaysInMonth } from 'date-fns';
+import ProfileLogout from '@/components/profile-logout';
 
 type JourneyFilter = Task | 'All' | 'QuotedGMV' | 'FinalGMV' | 'FirstMeeting' | 'QualifyingMeeting';
 
@@ -486,9 +487,7 @@ export default function Journey360Page() {
                 Journey 360
               </Button>
             </Link>
-            <Link href="/">
-              <Button variant="outline"><HomeIcon className="mr-2 h-4 w-4" />Home</Button>
-            </Link>
+            <ProfileLogout />
         </div>
       </header>
 

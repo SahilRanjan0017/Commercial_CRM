@@ -10,6 +10,7 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip"
 import { AreForm } from '@/components/are-form';
+import ProfileLogout from '@/components/profile-logout';
 
 export default function ArePage() {
   return (
@@ -55,12 +56,7 @@ export default function ArePage() {
                 Journey 360
               </Button>
             </Link>
-            <Link href="/">
-              <Button variant="outline">
-                <HomeIcon className="mr-2 h-4 w-4" />
-                Home
-              </Button>
-            </Link>
+            <ProfileLogout />
         </div>
       </header>
       <main className="relative z-10 flex-grow min-h-0">

@@ -13,6 +13,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { subMonths, startOfMonth, endOfMonth, startOfToday, endOfToday, isWithinInterval, getDate, getDaysInMonth } from 'date-fns';
 import type { CustomerJourney, Task } from '@/types';
 import { cn } from '@/lib/utils';
+import ProfileLogout from '@/components/profile-logout';
 
 const cityGroups: Record<string, string[]> = {
     'BLR': ['BLR', 'Bangalore', 'Blr Commercial', 'Mysore'],
@@ -258,9 +259,7 @@ export default function OverallViewPage() {
                     <Link href="/journey-360">
                         <Button variant="outline"><AreaChart className="mr-2 h-4 w-4" />Journey 360</Button>
                     </Link>
-                    <Link href="/">
-                        <Button variant="outline"><HomeIcon className="mr-2 h-4 w-4" />Home</Button>
-                    </Link>
+                    <ProfileLogout />
                 </div>
             </header>
 

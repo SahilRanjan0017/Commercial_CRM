@@ -1,4 +1,3 @@
-
 import { createServerClient, type CookieOptions } from '@supabase/ssr'
 import { NextResponse, type NextRequest } from 'next/server'
 
@@ -18,8 +17,6 @@ export async function middleware(request: NextRequest) {
           return request.cookies.get(name)?.value
         },
         set(name: string, value: string, options: CookieOptions) {
-          // The `set` method was modifying the request cookies, which is not allowed.
-          // Instead, the cookie should be set on the response object.
           response.cookies.set({
             name,
             value,
@@ -27,8 +24,6 @@ export async function middleware(request: NextRequest) {
           })
         },
         remove(name: string, options: CookieOptions) {
-          // The `remove` method was modifying the request cookies, which is not allowed.
-          // Instead, the cookie should be removed from the response object.
           response.cookies.set({
             name,
             value: '',
@@ -52,13 +47,20 @@ export async function middleware(request: NextRequest) {
     '/overall-view'
   ]
   
-  const isProtectedRoute = protectedRoutes.some(route => 
-    request.nextUrl.pathname === route || (route !== '/' && request.nextUrl.pathname.startsWith(route + '/'))
-  )
-  
-  const isPublicAuthRoute = ['/login', '/signup'].includes(request.nextUrl.pathname);
+  const pathname = request.nextUrl.pathname;
 
-  // If user is not logged in and trying to access protected route
+  const isProtectedRoute = protectedRoutes.some(route => {
+    // If the route is '/', it must be an exact match
+    if (route === '/') {
+      return pathname === '/';
+    }
+    // For other routes, check for an exact match or a sub-path
+    return pathname === route || pathname.startsWith(route + '/');
+  });
+
+  const isPublicAuthRoute = ['/login', '/signup'].includes(pathname);
+
+  // If user is not logged in and trying to access a protected route
   if (!user && isProtectedRoute) {
     const url = request.nextUrl.clone()
     url.pathname = '/login'
@@ -77,14 +79,6 @@ export async function middleware(request: NextRequest) {
 
 export const config = {
   matcher: [
-    /*
-     * Match all request paths except for the ones starting with:
-     * - _next/static (static files)
-     * - _next/image (image optimization files)
-     * - favicon.ico (favicon file)
-     * - auth/confirm (for email verification)
-     * Feel free to modify this pattern to include more paths.
-     */
     '/((?!_next/static|_next/image|favicon.ico|auth/confirm|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)',
   ],
 }
