@@ -13,6 +13,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 export default function SignupPage() {
   const searchParams = useSearchParams();
   const message = searchParams.get("message");
+  const cities = ["BLR", "CHN", "HYD", "PUNE", "NCR"];
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-background px-4">
@@ -77,7 +78,22 @@ export default function SignupPage() {
                         </SelectContent>
                     </Select>
                 </div>
-
+                
+                <div>
+                    <Label htmlFor="city">City</Label>
+                    <Select name="city" required>
+                        <SelectTrigger id="city">
+                            <SelectValue placeholder="Select City" />
+                        </SelectTrigger>
+                        <SelectContent>
+                            {cities.map((city) => (
+                                <SelectItem key={city} value={city}>
+                                {city}
+                                </SelectItem>
+                            ))}
+                        </SelectContent>
+                    </Select>
+                </div>
 
                 <Button type="submit" className="w-full">
                     Create an account
