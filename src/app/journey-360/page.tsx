@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useState, useEffect, useMemo } from 'react';
@@ -97,6 +96,7 @@ const FunnelAnalysis = ({ journeys, cityFilter, monthFilter }: { journeys: Custo
     };
 
     const dateRange = getDateRangeForFilter(monthFilter);
+
     const filteredJourneys = journeys.filter(journey => {
         let cityFilterMatch = true;
         if (cityFilter !== 'All') {
@@ -107,8 +107,34 @@ const FunnelAnalysis = ({ journeys, cityFilter, monthFilter }: { journeys: Custo
             : journey.createdAt ? isWithinInterval(new Date(journey.createdAt), dateRange) : false;
         return cityFilterMatch && monthFilterMatch;
     });
-    
-    if (filteredJourneys.length === 0) {
+
+    const uniqueCrnsInPeriod = new Set(filteredJourneys.map(j => j.crn));
+
+    const stageCrns = {
+        'FirstMeeting': new Set<string>(),
+        'Recce': new Set<string>(),
+        'TDDM': new Set<string>(),
+        'Advance Meeting': new Set<string>(),
+        'Closure': new Set<string>(),
+    };
+
+    filteredJourneys.forEach(j => {
+        if (j.createdAt && isWithinInterval(new Date(j.createdAt), dateRange)) {
+            stageCrns.FirstMeeting.add(j.crn);
+        }
+
+        j.history.forEach(event => {
+            if (isWithinInterval(new Date(event.timestamp), dateRange)) {
+                if (event.stage.task === 'Recce') stageCrns.Recce.add(j.crn);
+                if (event.stage.task === 'TDDM') stageCrns.TDDM.add(j.crn);
+                if (event.stage.task === 'Advance Meeting') stageCrns['Advance Meeting'].add(j.crn);
+                if (event.stage.task === 'Closure') stageCrns.Closure.add(j.crn);
+            }
+        });
+    });
+
+    const totalCrns = uniqueCrnsInPeriod.size;
+    if (totalCrns === 0) {
         return (
             <Card>
                 <CardHeader>
@@ -121,41 +147,31 @@ const FunnelAnalysis = ({ journeys, cityFilter, monthFilter }: { journeys: Custo
         );
     }
     
-    const stageFlags = filteredJourneys.map(j => ({
-        crn: j.crn,
-        has_first_meeting: j.history.some(e => e.stage.subTask === 'TDDM Initial Meeting' && isWithinInterval(new Date(e.timestamp),dateRange)) ? 1 : 0,
-        has_recce: j.history.some(e => e.stage.task === 'Recce' && isWithinInterval(new Date(e.timestamp),dateRange)) ? 1 : 0,
-        has_tddm: j.history.some(e => e.stage.task === 'TDDM' && isWithinInterval(new Date(e.timestamp),dateRange)) ? 1 : 0,
-        has_adv_meeting: j.history.some(e => e.stage.task === 'Advance Meeting' && isWithinInterval(new Date(e.timestamp),dateRange)) ? 1 : 0,
-        has_closure: j.history.some(e => e.stage.task === 'Closure' && isWithinInterval(new Date(e.timestamp),dateRange)) ? 1 : 0,
-    }));
+    const firstMeetingCount = stageCrns.FirstMeeting.size;
+    const recceCount = stageCrns.Recce.size;
+    const tddmCount = stageCrns.TDDM.size;
+    const advanceMeetingCount = stageCrns['Advance Meeting'].size;
+    const closureCount = stageCrns.Closure.size;
 
-    const agg = stageFlags.reduce((acc, flags) => {
-        acc.total_crn += 1;
-        acc.total_first_meeting += flags.has_first_meeting;
-        acc.total_recce += flags.has_recce;
-        acc.total_tddm += flags.has_tddm;
-        acc.total_adv_meeting += flags.has_adv_meeting;
-        acc.total_closure += flags.has_closure;
-        return acc;
-    }, { total_crn: 0, total_first_meeting: 0, total_recce: 0, total_tddm: 0, total_adv_meeting: 0, total_closure: 0 });
+    const pct_first_to_recce = firstMeetingCount > 0 ? (recceCount / firstMeetingCount) * 100 : 0;
+    const pct_tddm = firstMeetingCount > 0 ? (tddmCount / firstMeetingCount) * 100 : 0;
+    const pct_adv_meeting = firstMeetingCount > 0 ? (advanceMeetingCount / firstMeetingCount) * 100 : 0;
+    const pct_closure = firstMeetingCount > 0 ? (closureCount / firstMeetingCount) * 100 : 0;
 
-    const totalLeads = agg.total_crn;
-    const pct_first_to_recce = agg.total_first_meeting > 0 ? (agg.total_recce / agg.total_first_meeting) * 100 : 0;
-    const pct_tddm = agg.total_crn > 0 ? (agg.total_tddm / agg.total_crn) * 100 : 0;
-    const pct_adv_meeting = agg.total_first_meeting > 0 ? (agg.total_adv_meeting / agg.total_first_meeting) * 100 : 0;
-    const pct_closure = agg.total_first_meeting > 0 ? (agg.total_closure / agg.total_first_meeting) * 100 : 0;
-    
-    const cnt_meeting_to_recce = stageFlags.filter(f => f.has_first_meeting && f.has_recce).length;
-    const cnt_recce_to_tddm = stageFlags.filter(f => f.has_recce && f.has_tddm).length;
-    const cnt_tddm_to_adv_meeting = stageFlags.filter(f => f.has_tddm && f.has_adv_meeting).length;
-    const cnt_adv_meeting_to_closure = stageFlags.filter(f => f.has_adv_meeting && f.has_closure).length;
-    
+    const getIntersection = (setA: Set<string>, setB: Set<string>) => {
+        return new Set([...setA].filter(x => setB.has(x)));
+    };
+
+    const cnt_meeting_to_recce = getIntersection(stageCrns.FirstMeeting, stageCrns.Recce).size;
+    const cnt_recce_to_tddm = getIntersection(stageCrns.Recce, stageCrns.TDDM).size;
+    const cnt_tddm_to_adv_meeting = getIntersection(stageCrns.TDDM, stageCrns['Advance Meeting']).size;
+    const cnt_adv_meeting_to_closure = getIntersection(stageCrns['Advance Meeting'], stageCrns.Closure).size;
+
     const AnalysisMetric = ({ value, label, isPercentage = false, icon: Icon }: { value: string | number, label: string, isPercentage?: boolean, icon?: React.ElementType }) => (
-         <div className="flex flex-col items-center justify-center p-4 rounded-lg bg-muted/50">
+        <div className="flex flex-col items-center justify-center p-4 rounded-lg bg-muted/50">
             <div className="flex items-baseline gap-2">
                 {Icon && <Icon className="w-6 h-6 text-muted-foreground mb-1" />}
-                <span className="text-3xl font-bold">{typeof value === 'number' ? value.toFixed(isPercentage ? 2 : 0) : value}</span>
+                <span className="text-3xl font-bold">{typeof value === 'number' ? value.toFixed(isPercentage ? 1 : 0) : value}</span>
                 {isPercentage && <Percent className="w-5 h-5 text-muted-foreground" />}
             </div>
             <p className="text-sm text-muted-foreground text-center mt-1">{label}</p>
@@ -183,11 +199,11 @@ const FunnelAnalysis = ({ journeys, cityFilter, monthFilter }: { journeys: Custo
                 <div>
                      <h4 className="font-semibold text-lg mb-4 text-center">Conversion Percentages</h4>
                      <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
-                        <AnalysisMetric value={totalLeads} label="Total Leads" icon={Users} />
+                        <AnalysisMetric value={firstMeetingCount} label="Total First Meetings" icon={Users} />
                         <AnalysisMetric value={pct_first_to_recce} label="% First Meeting to Recce" isPercentage />
-                        <AnalysisMetric value={pct_tddm} label="% TDDM" isPercentage />
-                        <AnalysisMetric value={pct_adv_meeting} label="% Advance Meeting" isPercentage />
-                        <AnalysisMetric value={pct_closure} label="% Closure" isPercentage />
+                        <AnalysisMetric value={pct_tddm} label="% TDDM from First Meeting" isPercentage />
+                        <AnalysisMetric value={pct_adv_meeting} label="% Adv. Meeting from First Meeting" isPercentage />
+                        <AnalysisMetric value={pct_closure} label="% Closure from First Meeting" isPercentage />
                     </div>
                 </div>
                  <div>
