@@ -123,8 +123,10 @@ export default function OverallViewPage() {
             let finalGmv = 0;
 
             cityJourneys.forEach(j => {
-                if (j.createdAt && isWithinInterval(new Date(j.createdAt), dateRange)) {
-                     achievedCrns.FirstMeeting.add(j.crn);
+                if (monthFilter === 'MTD' && j.current_month === true) {
+                    achievedCrns.FirstMeeting.add(j.crn);
+                } else if (monthFilter !== 'MTD' && j.createdAt && isWithinInterval(new Date(j.createdAt), dateRange)) {
+                    achievedCrns.FirstMeeting.add(j.crn);
                 }
 
                 j.history.forEach(event => {
@@ -408,6 +410,8 @@ export default function OverallViewPage() {
         </div>
     );
 }
+
+    
 
     
 
