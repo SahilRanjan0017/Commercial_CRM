@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useState, useEffect, useMemo } from 'react';
@@ -128,7 +127,9 @@ const FunnelAnalysis = ({ journeys, cityFilter, monthFilter }: { journeys: Custo
     };
 
     journeysInScope.forEach(j => {
-        if (j.createdAt && isWithinInterval(new Date(j.createdAt), dateRange)) {
+        if (monthFilter === 'MTD' && j.current_month === true) {
+            stageCrns.FirstMeeting.add(j.crn);
+        } else if (monthFilter !== 'MTD' && j.createdAt && isWithinInterval(new Date(j.createdAt), dateRange)) {
             stageCrns.FirstMeeting.add(j.crn);
         }
         
@@ -250,6 +251,9 @@ export default function Journey360Page() {
 
         const hasEventInPeriod = (task: Task | 'FirstMeeting') => {
             if (task === 'FirstMeeting') {
+                if (monthFilter === 'MTD') {
+                    return journey.current_month === true;
+                }
                 return journey.createdAt && isWithinInterval(new Date(journey.createdAt), dateRange);
             }
             
@@ -320,7 +324,9 @@ export default function Journey360Page() {
       let finalGmv = 0;
       
       journeysInScope.forEach(j => {
-          if (j.createdAt && isWithinInterval(new Date(j.createdAt), dateRange)) {
+          if (monthFilter === 'MTD' && j.current_month === true) {
+              achievedCrns.FirstMeeting.add(j.crn);
+          } else if (monthFilter !== 'MTD' && j.createdAt && isWithinInterval(new Date(j.createdAt), dateRange)) {
               achievedCrns.FirstMeeting.add(j.crn);
           }
           
@@ -778,5 +784,7 @@ export default function Journey360Page() {
     </Dialog>
   );
 }
+
+    
 
     

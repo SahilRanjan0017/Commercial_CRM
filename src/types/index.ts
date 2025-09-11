@@ -157,6 +157,7 @@ export interface CustomerJourney {
   quotedGmv?: number;
   finalGmv?: number;
   createdAt?: string;
+  current_month?: boolean;
 }
 
 export interface NewJourneyDetails {
@@ -166,6 +167,8 @@ export interface NewJourneyDetails {
     customerPhone: string;
     gmv: number;
 }
+
+    
 
     
 

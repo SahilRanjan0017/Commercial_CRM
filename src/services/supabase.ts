@@ -386,6 +386,7 @@ export async function getAllJourneys(): Promise<CustomerJourney[]> {
             quotedGmv: journeyInfo?.quoted_gmv,
             finalGmv: journeyInfo?.final_gmv,
             createdAt: rawInfo?.timestamp,
+            current_month: rawInfo?.current_month,
         };
     }).filter((j): j is CustomerJourney => j !== null);
 }
@@ -538,3 +539,6 @@ export async function getJourney(crn: string, newJourneyDetails: NewJourneyDetai
 
     return newJourney;
 }
+
+
+    
