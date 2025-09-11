@@ -57,7 +57,6 @@ const cityGroups: Record<string, string[]> = {
 };
 const cityFilterOptions = ['All', ...Object.keys(cityGroups)];
 
-const baseFirstMeetingTarget = 150;
 const getCascadingTargets = (firstMeetingTarget: number) => {
     const recceTarget = firstMeetingTarget * 0.8 * 0.8; // Combined factors
     const tddmTarget = recceTarget * 0.7;
@@ -71,7 +70,24 @@ const getCascadingTargets = (firstMeetingTarget: number) => {
         'Closure': closureTarget,
     };
 };
-const allCitiesTargets = getCascadingTargets(baseFirstMeetingTarget);
+
+const cityFirstMeetingTargets: Record<string, number> = {
+    'BLR': 50, 'CHN': 15, 'HYD': 45, 'NCR': 30, 'Pune': 10
+};
+const cityTargets = Object.entries(cityFirstMeetingTargets).reduce((acc, [city, firstMeetingTarget]) => {
+    acc[city] = getCascadingTargets(firstMeetingTarget);
+    return acc;
+}, {} as Record<string, ReturnType<typeof getCascadingTargets>>);
+
+const allCitiesTargets = (Object.values(cityTargets) as ReturnType<typeof getCascadingTargets>[]).reduce(
+    (acc, cityTarget) => {
+        (Object.keys(acc) as Array<keyof typeof acc>).forEach(key => {
+            acc[key] += cityTarget[key];
+        });
+        return acc;
+    },
+    { 'FirstMeeting': 0, 'Recce': 0, 'TDDM': 0, 'Advance Meeting': 0, 'Closure': 0 }
+);
 
 const cityGmvTargets: Record<string, number> = {
     'BLR': 15_00_00_000,
@@ -235,50 +251,49 @@ export default function Journey360Page() {
     return { start: startOfMonth(targetMonth), end: endOfMonth(targetMonth) };
   };
   
-  const filteredJourneys = journeys.filter(journey => {
-    const searchTerm = crnSearch.toLowerCase().trim();
-    const searchFilterMatch = searchTerm === '' || 
-        journey.crn.toLowerCase().includes(searchTerm) ||
-        (journey.customerName && journey.customerName.toLowerCase().includes(searchTerm));
+  const filteredJourneys = useMemo(() => {
+    if (loading) return [];
+    
+    return journeys.filter(journey => {
+        const searchTerm = crnSearch.toLowerCase().trim();
+        const searchFilterMatch = searchTerm === '' || 
+            journey.crn.toLowerCase().includes(searchTerm) ||
+            (journey.customerName && journey.customerName.toLowerCase().includes(searchTerm));
+            
+        const cityFilterMatch = cityFilter === 'All' || (cityGroups[cityFilter]?.includes(journey.city) ?? false);
         
-    const cityFilterMatch = cityFilter === 'All' || (cityGroups[cityFilter]?.includes(journey.city) ?? false);
-    const dateRange = getDateRangeForFilter(monthFilter);
+        if (!searchFilterMatch || !cityFilterMatch) return false;
 
-    const hasEventInPeriod = (task: Task | 'FirstMeeting') => {
-        if (task === 'FirstMeeting') {
-             return journey.createdAt && isWithinInterval(new Date(journey.createdAt), dateRange);
+        const dateRange = getDateRangeForFilter(monthFilter);
+
+        const hasEventInPeriod = (task: Task | 'FirstMeeting') => {
+            if (task === 'FirstMeeting') {
+                return journey.createdAt && isWithinInterval(new Date(journey.createdAt), dateRange);
+            }
+            
+            return journey.history.some(event => {
+                const eventDate = new Date(event.timestamp);
+                if (!isWithinInterval(eventDate, dateRange)) return false;
+                return event.stage.task === task;
+            });
+        };
+
+        if (activeFilter === 'QuotedGMV') {
+            const hasQuotedGmvInPeriod = !journey.isClosed && typeof journey.quotedGmv === 'number' && journey.quotedGmv >= 1 &&
+                journey.history.some(e => isWithinInterval(new Date(e.timestamp), dateRange) && e.stage.task === 'Recce' && e.stage.subTask === 'Recce Form Submission');
+            return hasQuotedGmvInPeriod;
         }
-        
-        return journey.history.some(event => {
-            const eventDate = new Date(event.timestamp);
-            if (!isWithinInterval(eventDate, dateRange)) return false;
-            if (task === 'Recce') return event.stage.task === 'Recce';
-            if (task === 'TDDM') return event.stage.task === 'TDDM';
-            if (task === 'Advance Meeting') return event.stage.task === 'Advance Meeting';
-            if (task === 'Closure') return event.stage.task === 'Closure';
-            return false;
-        });
-    };
 
-    if (activeFilter === 'FirstMeeting') {
-        const firstMeetingMatch = journey.createdAt && isWithinInterval(new Date(journey.createdAt), dateRange);
-        return searchFilterMatch && cityFilterMatch && firstMeetingMatch;
-    }
+        if (activeFilter === 'FinalGMV') {
+            const hasFinalGmvInPeriod = journey.isClosed && typeof journey.finalGmv === 'number' && journey.finalGmv >= 1 &&
+                journey.history.some(e => e.stage.subTask === 'Closure Meeting (BA Collection)' && isWithinInterval(new Date(e.timestamp), dateRange));
+            return hasFinalGmvInPeriod;
+        }
 
-    if (activeFilter === 'QuotedGMV') {
-        const hasQuotedGmvInPeriod = !journey.isClosed && typeof journey.quotedGmv === 'number' && journey.quotedGmv >= 1 &&
-            journey.history.some(e => isWithinInterval(new Date(e.timestamp), dateRange) && e.stage.task === 'Recce' && e.stage.subTask === 'Recce Form Submission');
-        return searchFilterMatch && cityFilterMatch && hasQuotedGmvInPeriod;
-    }
+        return hasEventInPeriod(activeFilter);
+    });
+}, [journeys, crnSearch, cityFilter, monthFilter, activeFilter, loading]);
 
-    if (activeFilter === 'FinalGMV') {
-        const hasFinalGmvInPeriod = journey.isClosed && typeof journey.finalGmv === 'number' && journey.finalGmv >= 1 &&
-            journey.history.some(e => e.stage.subTask === 'Closure Meeting (BA Collection)' && isWithinInterval(new Date(e.timestamp), dateRange));
-        return searchFilterMatch && cityFilterMatch && hasFinalGmvInPeriod;
-    }
-
-    return searchFilterMatch && cityFilterMatch && hasEventInPeriod(activeFilter);
-});
 
   const downloadCSV = () => {
     if (filteredJourneys.length === 0) return;
@@ -323,26 +338,16 @@ export default function Journey360Page() {
       let finalGmv = 0;
       
       journeysInScope.forEach(j => {
-          let hasQuotedGmvInPeriod = false;
-
           if (j.createdAt && isWithinInterval(new Date(j.createdAt), dateRange)) {
               achievedCrns.FirstMeeting.add(j.crn);
           }
           
           j.history.forEach(event => {
               if (isWithinInterval(new Date(event.timestamp), dateRange)) {
-                  if (event.stage.task === 'Recce') {
-                      achievedCrns.Recce.add(j.crn);
-                  }
-                  if (event.stage.task === 'TDDM') {
-                      achievedCrns.TDDM.add(j.crn);
-                  }
-                  if (event.stage.task === 'Advance Meeting') {
-                      achievedCrns['Advance Meeting'].add(j.crn);
-                  }
-                  if (event.stage.task === 'Closure') {
-                      achievedCrns.Closure.add(j.crn);
-                  }
+                  if (event.stage.task === 'Recce') achievedCrns.Recce.add(j.crn);
+                  if (event.stage.task === 'TDDM') achievedCrns.TDDM.add(j.crn);
+                  if (event.stage.task === 'Advance Meeting') achievedCrns['Advance Meeting'].add(j.crn);
+                  if (event.stage.task === 'Closure') achievedCrns.Closure.add(j.crn);
 
                   if (event.stage.task === 'Closure' && event.stage.subTask === 'Closure Meeting (BA Collection)' && 'finalGmv' in event && event.finalGmv) {
                      finalGmv += event.finalGmv;
@@ -367,9 +372,10 @@ export default function Journey360Page() {
       const today = new Date();
       const monthProgressRatio = monthFilter.startsWith('M-') ? 1 : (getDate(today) / getDaysInMonth(today));
 
+      const currentTargets = cityFilter === 'All' ? allCitiesTargets : cityTargets[cityFilter] || getCascadingTargets(0);
       const targetGmv = cityFilter === 'All' ? totalTargetGmv : cityGmvTargets[cityFilter] || 0;
 
-      return { achievedCounts, quotedGmv, finalGmv, monthProgressRatio, targetGmv };
+      return { achievedCounts, quotedGmv, finalGmv, monthProgressRatio, targetGmv, currentTargets };
   }
   
   const isImage = (fileName: string) => /\.(jpe?g|png|gif|webp)$/i.test(fileName);
@@ -585,9 +591,9 @@ export default function Journey360Page() {
                         <div key={stage} className="space-y-2">
                             <h4 className="text-md font-semibold text-center text-muted-foreground">{stage.replace(/([A-Z])/g, ' $1').trim()}</h4>
                             <div className="grid grid-cols-3 gap-4">
-                                <DashboardCard title="Target" value={allCitiesTargets[stage as keyof typeof allCitiesTargets].toFixed(0)} />
+                                <DashboardCard title="Target" value={dashboardData.currentTargets[stage as keyof typeof dashboardData.currentTargets].toFixed(0)} />
                                 <DashboardCard title="Achieved" value={dashboardData.achievedCounts[stage as keyof typeof dashboardData.achievedCounts]} onClick={() => setActiveFilter(stage as JourneyFilter)} isActive={activeFilter === stage} />
-                                <DashboardCard title="Prorated Target" value={(allCitiesTargets[stage as keyof typeof allCitiesTargets] * dashboardData.monthProgressRatio).toFixed(0)} />
+                                <DashboardCard title="Prorated Target" value={(dashboardData.currentTargets[stage as keyof typeof dashboardData.currentTargets] * dashboardData.monthProgressRatio).toFixed(0)} />
                             </div>
                         </div>
                     ))}
@@ -624,13 +630,12 @@ export default function Journey360Page() {
                         <TableRow>
                             <TableHead>Customer</TableHead>
                             <TableHead>City</TableHead>
-                            <TableHead>Current Stage</TableHead>
                             <TableHead>Status</TableHead>
                         </TableRow>
                         </TableHeader>
                         <TableBody>
                         {loading ? (
-                            <TableRow><TableCell colSpan={4} className="text-center"><div className="flex justify-center items-center p-4"><Loader2 className="mr-2 h-4 w-4 animate-spin"/>Loading...</div></TableCell></TableRow>
+                            <TableRow><TableCell colSpan={3} className="text-center"><div className="flex justify-center items-center p-4"><Loader2 className="mr-2 h-4 w-4 animate-spin"/>Loading...</div></TableCell></TableRow>
                         ) : filteredJourneys.length > 0 ? (
                             filteredJourneys.map((journey) => (
                             <TableRow key={journey.crn}>
@@ -643,14 +648,13 @@ export default function Journey360Page() {
                                     </DialogTrigger>
                                 </TableCell>
                                 <TableCell>{journey.city}</TableCell>
-                                <TableCell>{journey.currentStage.task} - {journey.currentStage.subTask}</TableCell>
                                 <TableCell>
                                 {journey.isClosed ? (<Badge variant="destructive">Closed</Badge>) : (<Badge variant="success">In Progress</Badge>)}
                                 </TableCell>
                             </TableRow>
                             ))
                         ) : (
-                            <TableRow><TableCell colSpan={4} className="h-24 text-center text-muted-foreground">No journeys found for the current filters.</TableCell></TableRow>
+                            <TableRow><TableCell colSpan={3} className="h-24 text-center text-muted-foreground">No journeys found for the current filters.</TableCell></TableRow>
                         )}
                         </TableBody>
                     </Table>
@@ -792,5 +796,7 @@ export default function Journey360Page() {
     </Dialog>
   );
 }
+
+    
 
     

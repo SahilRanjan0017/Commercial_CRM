@@ -114,39 +114,50 @@ export default function OverallViewPage() {
         const data: CityPerformanceData[] = cities.map(city => {
             const cityJourneys = journeys.filter(j => (cityGroups[city]?.includes(j.city) ?? false));
             
-            const achievedCounts: Record<Task | 'FirstMeeting', number> = {
-                'FirstMeeting': 0, 'Recce': 0, 'TDDM': 0, 'Advance Meeting': 0, 'Closure': 0
+            const achievedCrns: Record<Task | 'FirstMeeting', Set<string>> = {
+                'FirstMeeting': new Set<string>(), 'Recce': new Set<string>(), 'TDDM': new Set<string>(), 
+                'Advance Meeting': new Set<string>(), 'Closure': new Set<string>()
             };
-            const countedCrnsForStage = Object.keys(achievedCounts).reduce((acc, k) => ({ ...acc, [k]: new Set<string>() }), {} as Record<string, Set<string>>);
             
             let quotedGmv = 0;
             let finalGmv = 0;
 
             cityJourneys.forEach(j => {
-                if (j.createdAt && isWithinInterval(new Date(j.createdAt), dateRange) && !countedCrnsForStage.FirstMeeting.has(j.crn)) {
-                     achievedCounts.FirstMeeting++;
-                     countedCrnsForStage.FirstMeeting.add(j.crn);
+                if (j.createdAt && isWithinInterval(new Date(j.createdAt), dateRange)) {
+                     achievedCrns.FirstMeeting.add(j.crn);
                 }
 
-                let hasQuotedGmvInPeriod = false;
                 j.history.forEach(event => {
                     if (isWithinInterval(new Date(event.timestamp), dateRange)) {
-                        const { task, subTask } = event.stage;
-                        if (task !== 'FirstMeeting' && !countedCrnsForStage[task].has(j.crn)) {
-                            achievedCounts[task]++;
-                            countedCrnsForStage[task].add(j.crn);
-                        }
+                        const { task } = event.stage;
+                        if (task === 'Recce') achievedCrns.Recce.add(j.crn);
+                        if (task === 'TDDM') achievedCrns.TDDM.add(j.crn);
+                        if (task === 'Advance Meeting') achievedCrns['Advance Meeting'].add(j.crn);
+                        if (task === 'Closure') achievedCrns.Closure.add(j.crn);
 
-                        if (task === 'Recce' && subTask === 'Recce Form Submission' && 'expectedGmv' in event && event.expectedGmv > 0) hasQuotedGmvInPeriod = true;
+                        if (task === 'Recce' && event.stage.subTask === 'Recce Form Submission' && 'expectedGmv' in event && event.expectedGmv > 0) {
+                            if (!j.quotedGmv || j.quotedGmv !== event.expectedGmv) { // Avoid double counting on rehydration if not necessary
+                                quotedGmv += event.expectedGmv;
+                            }
+                        }
                         
-                        if (task === 'Closure' && subTask === 'Closure Meeting (BA Collection)' && 'finalGmv' in event && event.finalGmv && event.finalGmv > 0) {
+                        if (task === 'Closure' && event.stage.subTask === 'Closure Meeting (BA Collection)' && 'finalGmv' in event && event.finalGmv && event.finalGmv > 0) {
                             finalGmv += event.finalGmv;
                         }
                     }
                 });
-                if (hasQuotedGmvInPeriod && j.quotedGmv && j.quotedGmv > 0) quotedGmv += j.quotedGmv;
+                 // Quoted GMV should be counted if the recce form was submitted in the period
+                const recceFormEventInPeriod = j.history.find(e => e.stage.subTask === 'Recce Form Submission' && isWithinInterval(new Date(e.timestamp), dateRange));
+                if (recceFormEventInPeriod && j.quotedGmv && j.quotedGmv > 0) {
+                    quotedGmv += j.quotedGmv;
+                }
             });
             
+            const achievedCounts = {
+                'FirstMeeting': achievedCrns.FirstMeeting.size, 'Recce': achievedCrns.Recce.size, 'TDDM': achievedCrns.TDDM.size,
+                'Advance Meeting': achievedCrns['Advance Meeting'].size, 'Closure': achievedCrns.Closure.size
+            };
+
             const targets = cityTargets[city];
             const calcMetrics = (achieved: number, target: number) => ({
                 achieved, target,
@@ -403,5 +414,7 @@ export default function OverallViewPage() {
         </div>
     );
 }
+
+    
 
     
