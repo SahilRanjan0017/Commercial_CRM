@@ -131,13 +131,12 @@ export default function OverallViewPage() {
 
                 j.history.forEach(event => {
                     if (isWithinInterval(new Date(event.timestamp), dateRange)) {
-                        const { task } = event.stage;
-                        if (task === 'Recce') achievedCrns.Recce.add(j.crn);
-                        if (task === 'TDDM') achievedCrns.TDDM.add(j.crn);
-                        if (task === 'Advance Meeting') achievedCrns['Advance Meeting'].add(j.crn);
-                        if (task === 'Closure') achievedCrns.Closure.add(j.crn);
+                        if (event.stage.task === 'Recce') achievedCrns.Recce.add(j.crn);
+                        if (event.stage.task === 'TDDM') achievedCrns.TDDM.add(j.crn);
+                        if (event.stage.task === 'Advance Meeting') achievedCrns['Advance Meeting'].add(j.crn);
+                        if (event.stage.task === 'Closure') achievedCrns.Closure.add(j.crn);
                         
-                        if (task === 'Closure' && event.stage.subTask === 'Closure Meeting (BA Collection)' && 'finalGmv' in event && event.finalGmv && event.finalGmv > 0) {
+                        if (event.stage.task === 'Closure' && event.stage.subTask === 'Closure Meeting (BA Collection)' && 'finalGmv' in event && event.finalGmv && event.finalGmv > 0) {
                             finalGmv += event.finalGmv;
                         }
                     }
@@ -410,6 +409,8 @@ export default function OverallViewPage() {
         </div>
     );
 }
+
+    
 
     
 
