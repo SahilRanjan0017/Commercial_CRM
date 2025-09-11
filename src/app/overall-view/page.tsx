@@ -123,8 +123,10 @@ export default function OverallViewPage() {
             let finalGmv = 0;
 
             cityJourneys.forEach(j => {
-                if (monthFilter === 'MTD' && j.current_month === true) {
-                    achievedCrns.FirstMeeting.add(j.crn);
+                if (monthFilter === 'MTD') {
+                    if (j.current_month === true) {
+                        achievedCrns.FirstMeeting.add(j.crn);
+                    }
                 } else if (monthFilter !== 'MTD' && j.createdAt && isWithinInterval(new Date(j.createdAt), dateRange)) {
                     achievedCrns.FirstMeeting.add(j.crn);
                 }
@@ -171,7 +173,7 @@ export default function OverallViewPage() {
                 closure: calcMetrics(achievedCounts['Closure'], targets.Closure),
                 gmv: {
                     quoted: quotedGmv, final: finalGmv, target: targetGmv,
-                    tva: targetGmv > 0 ? parseFloat(((quotedGmv / targetGmv) * 100).toFixed(2)) : 0,
+                    tva: targetGmv > 0 ? parseFloat(((finalGmv / targetGmv) * 100).toFixed(2)) : 0,
                 },
             };
         });
@@ -216,7 +218,7 @@ export default function OverallViewPage() {
             }
         });
         
-        totals.gmv.tva = totals.gmv.target > 0 ? (totals.gmv.quoted / totals.gmv.target) * 100 : 0;
+        totals.gmv.tva = totals.gmv.target > 0 ? (totals.gmv.final / totals.gmv.target) * 100 : 0;
 
         return totals;
     }, [performanceData]);
@@ -404,3 +406,5 @@ export default function OverallViewPage() {
         </div>
     );
 }
+
+    
