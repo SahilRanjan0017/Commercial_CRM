@@ -341,14 +341,8 @@ export default function Journey360Page() {
       
       journeysInScope.forEach(j => {
           if (j.createdAt && isWithinInterval(new Date(j.createdAt), dateRange)) {
-              if (!countedCrnsForStage.FirstMeeting.has(j.crn)) {
-                  countedCrnsForStage.FirstMeeting.add(j.crn);
-                  achievedCounts.FirstMeeting++;
-              }
-              if (!countedCrnsForStage.QualifyingMeeting.has(j.crn)) {
-                  countedCrnsForStage.QualifyingMeeting.add(j.crn);
-                  achievedCounts.QualifyingMeeting++;
-              }
+              countedCrnsForStage.FirstMeeting.add(j.crn);
+              countedCrnsForStage.QualifyingMeeting.add(j.crn);
           }
           
           let hasQuotedGmvInPeriod = false;
@@ -358,10 +352,7 @@ export default function Journey360Page() {
                   const stageTask = event.stage.task;
                   const stageSubTask = event.stage.subTask;
 
-                  if (!countedCrnsForStage[stageTask].has(j.crn)) {
-                      countedCrnsForStage[stageTask].add(j.crn);
-                      achievedCounts[stageTask]++;
-                  }
+                  countedCrnsForStage[stageTask].add(j.crn);
                   
                   if (stageTask === 'Recce' && stageSubTask === 'Recce Form Submission') {
                      hasQuotedGmvInPeriod = true;
@@ -379,6 +370,13 @@ export default function Journey360Page() {
             quotedGmv += j.quotedGmv;
           }
       });
+      
+      achievedCounts.FirstMeeting = countedCrnsForStage.FirstMeeting.size;
+      achievedCounts.QualifyingMeeting = countedCrnsForStage.QualifyingMeeting.size;
+      achievedCounts.Recce = countedCrnsForStage.Recce.size;
+      achievedCounts.TDDM = countedCrnsForStage.TDDM.size;
+      achievedCounts['Advance Meeting'] = countedCrnsForStage['Advance Meeting'].size;
+      achievedCounts.Closure = countedCrnsForStage.Closure.size;
 
       const today = new Date();
       const monthProgressRatio = monthFilter.startsWith('M-') ? 1 : (getDate(today) / getDaysInMonth(today));
@@ -808,5 +806,7 @@ export default function Journey360Page() {
     </Dialog>
   );
 }
+
+    
 
     
