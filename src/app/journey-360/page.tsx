@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import { useState, useEffect, useMemo } from 'react';
@@ -441,6 +442,9 @@ export default function Journey360Page() {
             if ('files' in event && event.files) {
                 files.push({ name: `Attachment - ${event.stage.subTask}`, url: event.files });
             }
+            if ('recceTemplateUrl' in event && event.recceTemplateUrl) {
+                files.push({ name: `Recce Template URL`, url: event.recceTemplateUrl });
+            }
 
             if (files.length > 0) {
                 if (!fileMap[key]) {
@@ -808,3 +812,4 @@ export default function Journey360Page() {
 }
 
     
+
