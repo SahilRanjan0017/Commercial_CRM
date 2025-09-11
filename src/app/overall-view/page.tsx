@@ -134,19 +134,13 @@ export default function OverallViewPage() {
                         if (task === 'TDDM') achievedCrns.TDDM.add(j.crn);
                         if (task === 'Advance Meeting') achievedCrns['Advance Meeting'].add(j.crn);
                         if (task === 'Closure') achievedCrns.Closure.add(j.crn);
-
-                        if (task === 'Recce' && event.stage.subTask === 'Recce Form Submission' && 'expectedGmv' in event && event.expectedGmv > 0) {
-                            if (!j.quotedGmv || j.quotedGmv !== event.expectedGmv) { // Avoid double counting on rehydration if not necessary
-                                quotedGmv += event.expectedGmv;
-                            }
-                        }
                         
                         if (task === 'Closure' && event.stage.subTask === 'Closure Meeting (BA Collection)' && 'finalGmv' in event && event.finalGmv && event.finalGmv > 0) {
                             finalGmv += event.finalGmv;
                         }
                     }
                 });
-                 // Quoted GMV should be counted if the recce form was submitted in the period
+
                 const recceFormEventInPeriod = j.history.find(e => e.stage.subTask === 'Recce Form Submission' && isWithinInterval(new Date(e.timestamp), dateRange));
                 if (recceFormEventInPeriod && j.quotedGmv && j.quotedGmv > 0) {
                     quotedGmv += j.quotedGmv;
@@ -414,6 +408,8 @@ export default function OverallViewPage() {
         </div>
     );
 }
+
+    
 
     
 
