@@ -26,7 +26,7 @@ import ProfileLogout from '@/components/profile-logout';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 
 
-type JourneyFilter = Task | 'FirstMeeting' | 'QualifyingMeeting' | 'QuotedGMV' | 'FinalGMV';
+type JourneyFilter = Task | 'FirstMeeting' | 'QuotedGMV' | 'FinalGMV';
 
 interface TaskGmvHistoryItem {
   task: string;
@@ -59,14 +59,12 @@ const cityFilterOptions = ['All', ...Object.keys(cityGroups)];
 
 const baseFirstMeetingTarget = 150;
 const getCascadingTargets = (firstMeetingTarget: number) => {
-    const qualifyingMeetingTarget = firstMeetingTarget * 0.8;
-    const recceTarget = qualifyingMeetingTarget * 0.8;
+    const recceTarget = firstMeetingTarget * 0.8 * 0.8; // Combined factors
     const tddmTarget = recceTarget * 0.7;
     const advanceMeetingTarget = tddmTarget * 0.4;
     const closureTarget = advanceMeetingTarget * 0.5;
     return {
         'FirstMeeting': firstMeetingTarget,
-        'QualifyingMeeting': qualifyingMeetingTarget,
         'Recce': recceTarget,
         'TDDM': tddmTarget,
         'Advance Meeting': advanceMeetingTarget,
@@ -246,8 +244,8 @@ export default function Journey360Page() {
     const cityFilterMatch = cityFilter === 'All' || (cityGroups[cityFilter]?.includes(journey.city) ?? false);
     const dateRange = getDateRangeForFilter(monthFilter);
 
-    const hasEventInPeriod = (task: Task | 'FirstMeeting' | 'QualifyingMeeting') => {
-        if (task === 'FirstMeeting' || task === 'QualifyingMeeting') {
+    const hasEventInPeriod = (task: Task | 'FirstMeeting') => {
+        if (task === 'FirstMeeting') {
              return journey.createdAt && isWithinInterval(new Date(journey.createdAt), dateRange);
         }
         
@@ -313,9 +311,8 @@ export default function Journey360Page() {
       const dateRange = getDateRangeForFilter(monthFilter);
       const journeysInScope = journeys.filter(j => cityFilter === 'All' || (cityGroups[cityFilter]?.includes(j.city) ?? false));
 
-      const achievedCrns: Record<Task | 'FirstMeeting' | 'QualifyingMeeting', Set<string>> = {
+      const achievedCrns: Record<Task | 'FirstMeeting', Set<string>> = {
           'FirstMeeting': new Set<string>(),
-          'QualifyingMeeting': new Set<string>(),
           'Recce': new Set<string>(),
           'TDDM': new Set<string>(),
           'Advance Meeting': new Set<string>(),
@@ -330,7 +327,6 @@ export default function Journey360Page() {
 
           if (j.createdAt && isWithinInterval(new Date(j.createdAt), dateRange)) {
               achievedCrns.FirstMeeting.add(j.crn);
-              achievedCrns.QualifyingMeeting.add(j.crn);
           }
           
           j.history.forEach(event => {
@@ -362,7 +358,6 @@ export default function Journey360Page() {
       
       const achievedCounts = {
         'FirstMeeting': achievedCrns.FirstMeeting.size,
-        'QualifyingMeeting': achievedCrns.QualifyingMeeting.size,
         'Recce': achievedCrns.Recce.size,
         'TDDM': achievedCrns.TDDM.size,
         'Advance Meeting': achievedCrns['Advance Meeting'].size,
@@ -586,7 +581,7 @@ export default function Journey360Page() {
                         </div>
                     </div>
                     
-                    {[ 'FirstMeeting', 'QualifyingMeeting', 'Recce', 'TDDM', 'Advance Meeting', 'Closure'].map(stage => (
+                    {[ 'FirstMeeting', 'Recce', 'TDDM', 'Advance Meeting', 'Closure'].map(stage => (
                         <div key={stage} className="space-y-2">
                             <h4 className="text-md font-semibold text-center text-muted-foreground">{stage.replace(/([A-Z])/g, ' $1').trim()}</h4>
                             <div className="grid grid-cols-3 gap-4">
@@ -797,15 +792,5 @@ export default function Journey360Page() {
     </Dialog>
   );
 }
-
-    
-
-  
-
-    
-
-
-
-    
 
     

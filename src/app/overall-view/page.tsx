@@ -32,16 +32,13 @@ const monthFilterOptions = [
     }))
 ];
 
-const baseFirstMeetingTarget = 150;
 const getCascadingTargets = (firstMeetingTarget: number) => {
-    const qualifyingMeetingTarget = firstMeetingTarget * 0.8;
-    const recceTarget = qualifyingMeetingTarget * 0.8;
+    const recceTarget = firstMeetingTarget * 0.8 * 0.8;
     const tddmTarget = recceTarget * 0.7;
     const advanceMeetingTarget = tddmTarget * 0.4;
     const closureTarget = advanceMeetingTarget * 0.5;
     return {
         'FirstMeeting': firstMeetingTarget,
-        'QualifyingMeeting': qualifyingMeetingTarget,
         'Recce': recceTarget,
         'TDDM': tddmTarget,
         'Advance Meeting': advanceMeetingTarget,
@@ -66,7 +63,6 @@ const totalTargetGmv = Object.values(cityGmvTargets).reduce((a, b) => a + b, 0);
 interface CityPerformanceData {
     city: string;
     firstMeetings: { achieved: number; target: number; mtdt: number; tva: number };
-    qualifyingMeetings: { achieved: number; target: number; mtdt: number; tva: number };
     recce: { achieved: number; target: number; mtdt: number; tva: number };
     tddm: { achieved: number; target: number; mtdt: number; tva: number };
     advanceMeeting: { achieved: number; target: number; mtdt: number; tva: number };
@@ -118,8 +114,8 @@ export default function OverallViewPage() {
         const data: CityPerformanceData[] = cities.map(city => {
             const cityJourneys = journeys.filter(j => (cityGroups[city]?.includes(j.city) ?? false));
             
-            const achievedCounts: Record<Task | 'FirstMeeting' | 'QualifyingMeeting', number> = {
-                'FirstMeeting': 0, 'QualifyingMeeting': 0, 'Recce': 0, 'TDDM': 0, 'Advance Meeting': 0, 'Closure': 0
+            const achievedCounts: Record<Task | 'FirstMeeting', number> = {
+                'FirstMeeting': 0, 'Recce': 0, 'TDDM': 0, 'Advance Meeting': 0, 'Closure': 0
             };
             const countedCrnsForStage = Object.keys(achievedCounts).reduce((acc, k) => ({ ...acc, [k]: new Set<string>() }), {} as Record<string, Set<string>>);
             
@@ -136,14 +132,11 @@ export default function OverallViewPage() {
                 j.history.forEach(event => {
                     if (isWithinInterval(new Date(event.timestamp), dateRange)) {
                         const { task, subTask } = event.stage;
-                        if (!countedCrnsForStage[task].has(j.crn)) {
+                        if (task !== 'FirstMeeting' && !countedCrnsForStage[task].has(j.crn)) {
                             achievedCounts[task]++;
                             countedCrnsForStage[task].add(j.crn);
                         }
-                        if (subTask === 'TDDM Initial Meeting' && !countedCrnsForStage.QualifyingMeeting.has(j.crn)) {
-                            achievedCounts.QualifyingMeeting++;
-                            countedCrnsForStage.QualifyingMeeting.add(j.crn);
-                        }
+
                         if (task === 'Recce' && subTask === 'Recce Form Submission' && 'expectedGmv' in event && event.expectedGmv > 0) hasQuotedGmvInPeriod = true;
                         
                         if (task === 'Closure' && subTask === 'Closure Meeting (BA Collection)' && 'finalGmv' in event && event.finalGmv && event.finalGmv > 0) {
@@ -166,7 +159,6 @@ export default function OverallViewPage() {
             return {
                 city,
                 firstMeetings: calcMetrics(achievedCounts.FirstMeeting, targets.FirstMeeting),
-                qualifyingMeetings: calcMetrics(achievedCounts.QualifyingMeeting, targets.QualifyingMeeting),
                 recce: calcMetrics(achievedCounts['Recce'], targets.Recce),
                 tddm: calcMetrics(achievedCounts['TDDM'], targets.TDDM),
                 advanceMeeting: calcMetrics(achievedCounts['Advance Meeting'], targets['Advance Meeting']),
@@ -185,7 +177,6 @@ export default function OverallViewPage() {
 
         const totals: Omit<CityPerformanceData, 'city'> = {
             firstMeetings: { achieved: 0, target: 0, mtdt: 0, tva: 0 },
-            qualifyingMeetings: { achieved: 0, target: 0, mtdt: 0, tva: 0 },
             recce: { achieved: 0, target: 0, mtdt: 0, tva: 0 },
             tddm: { achieved: 0, target: 0, mtdt: 0, tva: 0 },
             advanceMeeting: { achieved: 0, target: 0, mtdt: 0, tva: 0 },
@@ -235,7 +226,7 @@ export default function OverallViewPage() {
         return `₹${value.toLocaleString('en-IN')}`;
     };
 
-    const metricGroups = ['First Meetings', 'Qualifying Meetings', 'Recce', 'TDDM', 'Advance Meeting', 'Closure', 'GMV'];
+    const metricGroups = ['First Meetings', 'Recce', 'TDDM', 'Advance Meeting', 'Closure', 'GMV'];
 
     return (
         <div className="relative min-h-screen w-full bg-background text-foreground flex flex-col p-4 sm:p-6 lg:p-8 gap-8">
@@ -339,11 +330,6 @@ export default function OverallViewPage() {
                                             <TableCell className="text-center">{data.firstMeetings.target.toFixed(0)}</TableCell>
                                             <TableCell className="text-center">{data.firstMeetings.mtdt.toFixed(0)}</TableCell>
                                             <TableCell className="text-center border-r">{data.firstMeetings.tva.toFixed(2)}%</TableCell>
-                                            
-                                            <TableCell className="text-center">{data.qualifyingMeetings.achieved}</TableCell>
-                                            <TableCell className="text-center">{data.qualifyingMeetings.target.toFixed(0)}</TableCell>
-                                            <TableCell className="text-center">{data.qualifyingMeetings.mtdt.toFixed(0)}</TableCell>
-                                            <TableCell className="text-center border-r">{data.qualifyingMeetings.tva.toFixed(2)}%</TableCell>
 
                                             <TableCell className="text-center">{data.recce.achieved}</TableCell>
                                             <TableCell className="text-center">{data.recce.target.toFixed(0)}</TableCell>
@@ -382,11 +368,6 @@ export default function OverallViewPage() {
                                             <TableCell className="text-center">{grandTotal.firstMeetings.mtdt.toFixed(0)}</TableCell>
                                             <TableCell className="text-center border-r">{grandTotal.firstMeetings.tva.toFixed(2)}%</TableCell>
                                             
-                                            <TableCell className="text-center">{grandTotal.qualifyingMeetings.achieved}</TableCell>
-                                            <TableCell className="text-center">{grandTotal.qualifyingMeetings.target.toFixed(0)}</TableCell>
-                                            <TableCell className="text-center">{grandTotal.qualifyingMeetings.mtdt.toFixed(0)}</TableCell>
-                                            <TableCell className="text-center border-r">{grandTotal.qualifyingMeetings.tva.toFixed(2)}%</TableCell>
-
                                             <TableCell className="text-center">{grandTotal.recce.achieved}</TableCell>
                                             <TableCell className="text-center">{grandTotal.recce.target.toFixed(0)}</TableCell>
                                             <TableCell className="text-center">{grandTotal.recce.mtdt.toFixed(0)}</TableCell>
