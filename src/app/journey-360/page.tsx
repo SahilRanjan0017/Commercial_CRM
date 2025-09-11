@@ -332,33 +332,32 @@ export default function Journey360Page() {
           'FirstMeeting': 0, 'QualifyingMeeting': 0, 'Recce': 0, 'TDDM': 0, 'Advance Meeting': 0, 'Closure': 0
       };
       
-      const countedCrnsForStage: Record<string, Set<string>> = {
-          'FirstMeeting': new Set(), 'QualifyingMeeting': new Set(), 'Recce': new Set(), 'TDDM': new Set(), 'Advance Meeting': new Set(), 'Closure': new Set()
-      };
-      
+      const advanceMeetingCrns = new Set<string>();
       let quotedGmv = 0;
       let finalGmv = 0;
       
       journeysInScope.forEach(j => {
-          if (j.createdAt && isWithinInterval(new Date(j.createdAt), dateRange)) {
-              countedCrnsForStage.FirstMeeting.add(j.crn);
-              countedCrnsForStage.QualifyingMeeting.add(j.crn);
-          }
-          
           let hasQuotedGmvInPeriod = false;
 
+          if (j.createdAt && isWithinInterval(new Date(j.createdAt), dateRange)) {
+              achievedCounts.FirstMeeting++;
+              achievedCounts.QualifyingMeeting++;
+          }
+          
           j.history.forEach(event => {
               if (isWithinInterval(new Date(event.timestamp), dateRange)) {
-                  const stageTask = event.stage.task;
-                  const stageSubTask = event.stage.subTask;
-
-                  countedCrnsForStage[stageTask].add(j.crn);
-                  
-                  if (stageTask === 'Recce' && stageSubTask === 'Recce Form Submission') {
-                     hasQuotedGmvInPeriod = true;
+                  if (event.stage.task === 'Recce' && event.stage.subTask === 'Recce Form Submission') {
+                      achievedCounts.Recce++;
+                      hasQuotedGmvInPeriod = true;
                   }
-                  
-                  if (stageTask === 'Closure' && stageSubTask === 'Closure Meeting (BA Collection)') {
+                  if (event.stage.task === 'TDDM' && event.stage.subTask === 'TDDM Initial Meeting') {
+                      achievedCounts.TDDM++;
+                  }
+                  if (event.stage.task === 'Advance Meeting') {
+                      advanceMeetingCrns.add(j.crn);
+                  }
+                  if (event.stage.task === 'Closure' && event.stage.subTask === 'Closure Meeting (BA Collection)') {
+                      achievedCounts.Closure++;
                       if ('finalGmv' in event && event.finalGmv) {
                          finalGmv += event.finalGmv;
                       }
@@ -371,12 +370,7 @@ export default function Journey360Page() {
           }
       });
       
-      achievedCounts.FirstMeeting = countedCrnsForStage.FirstMeeting.size;
-      achievedCounts.QualifyingMeeting = countedCrnsForStage.QualifyingMeeting.size;
-      achievedCounts.Recce = countedCrnsForStage.Recce.size;
-      achievedCounts.TDDM = countedCrnsForStage.TDDM.size;
-      achievedCounts['Advance Meeting'] = countedCrnsForStage['Advance Meeting'].size;
-      achievedCounts.Closure = countedCrnsForStage.Closure.size;
+      achievedCounts['Advance Meeting'] = advanceMeetingCrns.size;
 
       const today = new Date();
       const monthProgressRatio = monthFilter.startsWith('M-') ? 1 : (getDate(today) / getDaysInMonth(today));
