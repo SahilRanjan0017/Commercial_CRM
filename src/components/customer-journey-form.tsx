@@ -12,88 +12,66 @@ import { TimelineView } from '@/components/timeline-view';
 import { stageMap, tasks } from '@/types';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
 import { useToast } from '@/hooks/use-toast';
-import { ArrowLeft, Loader2, Lock } from 'lucide-react';
+import { ArrowLeft, Loader2, Lock, AlertCircle } from 'lucide-react';
+import { Alert, AlertTitle, AlertDescription } from './ui/alert';
 
-const cities = ["HYD", "BLR", "CHN", "PUNE", "NCR"];
 
 export function CustomerJourneyForm() {
   const [journey, setJourney] = useState<CustomerJourney | null>(null);
   const [crnInput, setCrnInput] = useState('');
-  const [city, setCity] = useState('');
-  const [customerName, setCustomerName] = useState('');
-  const [customerEmail, setCustomerEmail] = useState('');
-  const [customerPhone, setCustomerPhone] = useState('');
-  const [gmv, setGmv] = useState('');
-
   const [currentStagePreview, setCurrentStagePreview] = useState<StageRef | null>(null);
   const [loading, setLoading] = useState(false);
-  const [isCheckingStage, startStageCheck] = useTransition();
+  const [crnExists, setCrnExists] = useState<boolean | null>(null);
+  const [isCheckingCrn, startCrnCheck] = useTransition();
   const { toast } = useToast();
   
   const handleCrnChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const newCrn = e.target.value.toUpperCase();
     setCrnInput(newCrn);
     setCurrentStagePreview(null);
+    setCrnExists(null);
   }
 
   const handleCrnBlur = () => {
     if (crnInput.trim()) {
-      startStageCheck(async () => {
+      startCrnCheck(async () => {
         try {
             const res = await fetch(`/api/journeys/${crnInput.trim()}`);
+            if (res.status === 404) {
+                setCrnExists(false);
+                setCurrentStagePreview(null);
+                return;
+            }
             if (!res.ok) throw new Error('Failed to fetch stage');
             const stage = await res.json();
             setCurrentStagePreview(stage);
+            setCrnExists(true);
         } catch (error) {
+            setCrnExists(false);
             setCurrentStagePreview(null);
         }
       })
     }
   }
 
-  const validateNewJourneyFields = () => {
-    if (!city) {
-      toast({ variant: "destructive", title: "City Required", description: "Please select a city for the new journey." });
-      return false;
-    }
-    if (!customerName.trim()) {
-        toast({ variant: "destructive", title: "Customer Name Required", description: "Please enter the customer's name." });
-        return false;
-    }
-    if (!customerEmail.trim() || !customerEmail.endsWith('@gmail.com')) {
-        toast({ variant: "destructive", title: "Valid Gmail Required", description: "Please enter a valid Gmail address (e.g., user@gmail.com)." });
-        return false;
-    }
-    if (!/^\d{10}$/.test(customerPhone)) {
-        toast({ variant: "destructive", title: "Valid Phone Number Required", description: "Please enter a 10-digit phone number." });
-        return false;
-    }
-    if (!gmv || isNaN(parseFloat(gmv)) || parseFloat(gmv) <= 0) {
-      toast({ variant: 'destructive', title: 'Invalid GMV', description: 'Please enter a valid positive number for GMV.' });
-      return false;
-    }
-    return true;
-  }
-
   const handleCrnSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (crnInput.trim()) {
-      if (!currentStagePreview && !isCheckingStage && !validateNewJourneyFields()) {
-          return;
-      }
+    if (!crnExists) {
+        toast({
+            variant: "destructive",
+            title: "CRN Not Found",
+            description: "This CRN does not exist. Please enter a valid CRN.",
+        });
+        return;
+    }
 
+    if (crnInput.trim()) {
       setLoading(true);
       try {
         const res = await fetch(`/api/journeys/${crnInput.trim()}`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                city: city,
-                customerName: customerName,
-                customerEmail: customerEmail,
-                customerPhone: customerPhone,
-                gmv: parseFloat(gmv)
-            })
+            body: JSON.stringify({}) // Body is now empty
         });
         if (!res.ok) throw new Error('Could not load journey');
         const loadedJourney = await res.json();
@@ -217,17 +195,11 @@ export function CustomerJourneyForm() {
   const handleGoBack = () => {
     setJourney(null);
     setCrnInput('');
-    setCity('');
-    setCustomerName('');
-    setCustomerEmail('');
-    setCustomerPhone('');
-    setGmv('');
     setCurrentStagePreview(null);
+    setCrnExists(null);
   };
   
   const availableSubTasks = journey?.currentStage?.task ? stageMap[journey.currentStage.task] : [];
-  const isNewJourney = !currentStagePreview && crnInput && !isCheckingStage;
-
 
   if (!journey) {
     return (
@@ -249,52 +221,23 @@ export function CustomerJourneyForm() {
                         onBlur={handleCrnBlur}
                     />
                     </div>
-                    {isCheckingStage && <div className="flex items-center text-sm text-muted-foreground"><Loader2 className="mr-2 h-4 w-4 animate-spin" />Checking...</div>}
+                    {isCheckingCrn && <div className="flex items-center text-sm text-muted-foreground"><Loader2 className="mr-2 h-4 w-4 animate-spin" />Checking...</div>}
                     
-                    {currentStagePreview && !isCheckingStage && (
+                    {crnExists === true && currentStagePreview && !isCheckingCrn && (
                         <div className="text-sm font-medium p-3 bg-secondary rounded-md">
                             <span className="text-muted-foreground">Current Stage:</span> {currentStagePreview.task} - {currentStagePreview.subTask}
                         </div>
                     )}
                     
-                    {isNewJourney && (
-                        <>
-                            <div className="text-sm font-medium p-3 bg-secondary rounded-md">
-                                <span className="text-muted-foreground">This looks like a new journey. The first stage will be</span> Recce - Recce Form Submission.
-                            </div>
-                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                                <div className="space-y-2">
-                                    <Label htmlFor="city">City</Label>
-                                    <Select onValueChange={setCity} value={city}>
-                                        <SelectTrigger id="city">
-                                            <SelectValue placeholder="Select city" />
-                                        </SelectTrigger>
-                                        <SelectContent>
-                                            {cities.map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}
-                                        </SelectContent>
-                                    </Select>
-                                </div>
-                                <div className="space-y-2">
-                                    <Label htmlFor="customerName">Customer Name</Label>
-                                    <Input id="customerName" placeholder="e.g. John Doe" value={customerName} onChange={(e) => setCustomerName(e.target.value)} />
-                                </div>
-                                 <div className="space-y-2">
-                                    <Label htmlFor="customerEmail">Customer Email</Label>
-                                    <Input id="customerEmail" type="email" placeholder="e.g. john@gmail.com" value={customerEmail} onChange={(e) => setCustomerEmail(e.target.value)} />
-                                </div>
-                                <div className="space-y-2">
-                                    <Label htmlFor="customerPhone">Customer Phone</Label>
-                                    <Input id="customerPhone" type="tel" placeholder="10-digit number" value={customerPhone} onChange={(e) => setCustomerPhone(e.target.value)} />
-                                </div>
-                                <div className="space-y-2 sm:col-span-2">
-                                    <Label htmlFor="gmv">GMV</Label>
-                                    <Input id="gmv" type="number" placeholder="Enter GMV" value={gmv} onChange={(e) => setGmv(e.target.value)} />
-                                </div>
-                            </div>
-                        </>
+                    {crnExists === false && !isCheckingCrn && (
+                        <Alert variant="destructive">
+                            <AlertCircle className="h-4 w-4" />
+                            <AlertTitle>CRN Not Found</AlertTitle>
+                            <AlertDescription>This customer does not exist. Please enter a valid CRN.</AlertDescription>
+                        </Alert>
                     )}
 
-                    <Button type="submit" className="w-full" disabled={loading || isCheckingStage}>
+                    <Button type="submit" className="w-full" disabled={loading || isCheckingCrn || crnExists === false}>
                     {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                     Load Journey
                     </Button>
