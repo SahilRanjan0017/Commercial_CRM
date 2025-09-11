@@ -270,7 +270,11 @@ export default function Journey360Page() {
         return journey.history.some(event => {
             const eventDate = new Date(event.timestamp);
             if (!isWithinInterval(eventDate, dateRange)) return false;
-            return event.stage.task === task;
+            if (task === 'Recce') return event.stage.task === 'Recce';
+            if (task === 'TDDM') return event.stage.task === 'TDDM';
+            if (task === 'Advance Meeting') return event.stage.task === 'Advance Meeting';
+            if (task === 'Closure') return event.stage.task === 'Closure';
+            return false;
         });
     };
 
@@ -327,7 +331,7 @@ export default function Journey360Page() {
       const dateRange = getDateRangeForFilter(monthFilter);
       const journeysInScope = journeys.filter(j => cityFilter === 'All' || (cityGroups[cityFilter]?.includes(j.city) ?? false));
 
-      const achievedCrns = {
+      const achievedCrns: Record<Task | 'FirstMeeting' | 'QualifyingMeeting', Set<string>> = {
           'FirstMeeting': new Set<string>(),
           'QualifyingMeeting': new Set<string>(),
           'Recce': new Set<string>(),
@@ -349,26 +353,25 @@ export default function Journey360Page() {
           
           j.history.forEach(event => {
               if (isWithinInterval(new Date(event.timestamp), dateRange)) {
-                  if (event.stage.task === 'Recce' && event.stage.subTask === 'Post Recce Follow Up') {
+                  if (event.stage.task === 'Recce') {
                       achievedCrns.Recce.add(j.crn);
-                      hasQuotedGmvInPeriod = true;
                   }
-                  if (event.stage.task === 'TDDM' && event.stage.subTask === 'TDDM Initial Meeting') {
+                  if (event.stage.task === 'TDDM') {
                       achievedCrns.TDDM.add(j.crn);
                   }
                   if (event.stage.task === 'Advance Meeting') {
                       achievedCrns['Advance Meeting'].add(j.crn);
                   }
-                  if (event.stage.task === 'Closure' && event.stage.subTask === 'Closure Meeting (BA Collection)') {
+                  if (event.stage.task === 'Closure') {
                       achievedCrns.Closure.add(j.crn);
-                      if ('finalGmv' in event && event.finalGmv) {
-                         finalGmv += event.finalGmv;
-                      }
+                  }
+
+                  if (event.stage.task === 'Closure' && event.stage.subTask === 'Closure Meeting (BA Collection)' && 'finalGmv' in event && event.finalGmv) {
+                     finalGmv += event.finalGmv;
                   }
               }
           });
           
-          // Note: This logic for quotedGmv might need refinement if it's tied to 'Post Recce Follow Up'
           const recceFormEvent = j.history.find(e => e.stage.subTask === 'Recce Form Submission' && isWithinInterval(new Date(e.timestamp), dateRange));
           if(recceFormEvent && j.quotedGmv && j.quotedGmv > 0) {
               quotedGmv += j.quotedGmv;
@@ -816,3 +819,5 @@ export default function Journey360Page() {
     
 
   
+
+    
