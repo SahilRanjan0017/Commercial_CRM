@@ -207,21 +207,16 @@ export default function OverallViewPage() {
             });
         });
         
+        // Recalculate TVA percentages for the grand total row
         (Object.keys(totals) as Array<keyof typeof totals>).forEach(key => {
             const metricKey = key as keyof typeof totals;
             if (metricKey !== 'gmv') {
                 const metric = totals[metricKey];
-                if (metric.target > 0) {
-                    metric.tva = (metric.achieved / metric.target) * 100;
-                } else {
-                    metric.tva = 0;
-                }
+                metric.tva = metric.target > 0 ? (metric.achieved / metric.target) * 100 : 0;
             }
         });
         
-        if (totals.gmv.target > 0) {
-            totals.gmv.tva = (totals.gmv.quoted / totals.gmv.target) * 100;
-        }
+        totals.gmv.tva = totals.gmv.target > 0 ? (totals.gmv.quoted / totals.gmv.target) * 100 : 0;
 
         return totals;
     }, [performanceData]);

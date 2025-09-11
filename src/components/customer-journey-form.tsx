@@ -42,7 +42,9 @@ export function CustomerJourneyForm() {
                 setCurrentStagePreview(null);
                 return;
             }
-            if (!res.ok) throw new Error('Failed to fetch stage');
+            if (!res.ok) {
+              throw new Error('Failed to fetch stage');
+            }
             const stage = await res.json();
             setCurrentStagePreview(stage);
             setCrnExists(true);
