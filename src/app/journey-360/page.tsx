@@ -155,15 +155,6 @@ const FunnelAnalysis = ({ journeys, cityFilter, monthFilter }: { journeys: Custo
     const pct_adv_meeting = firstMeetingCount > 0 ? (advanceMeetingCount / firstMeetingCount) * 100 : 0;
     const pct_closure = firstMeetingCount > 0 ? (closureCount / firstMeetingCount) * 100 : 0;
 
-    const getIntersection = (setA: Set<string>, setB: Set<string>) => {
-        return new Set([...setA].filter(x => setB.has(x)));
-    };
-
-    const cnt_meeting_to_recce = getIntersection(stageCrns.FirstMeeting, stageCrns.Recce).size;
-    const cnt_recce_to_tddm = getIntersection(stageCrns.Recce, stageCrns.TDDM).size;
-    const cnt_tddm_to_adv_meeting = getIntersection(stageCrns.TDDM, stageCrns['Advance Meeting']).size;
-    const cnt_adv_meeting_to_closure = getIntersection(stageCrns['Advance Meeting'], stageCrns.Closure).size;
-
     const AnalysisMetric = ({ value, label, isPercentage = false, icon: Icon }: { value: string | number, label: string, isPercentage?: boolean, icon?: React.ElementType }) => (
         <div className="flex flex-col items-center justify-center p-4 rounded-lg bg-muted/50">
             <div className="flex items-baseline gap-2">
@@ -175,41 +166,21 @@ const FunnelAnalysis = ({ journeys, cityFilter, monthFilter }: { journeys: Custo
         </div>
     );
     
-    const ConversionMetric = ({ count, from, to }: { count: number, from: string, to: string }) => (
-        <div className="flex items-center justify-center gap-2 p-4 rounded-lg bg-muted/50">
-             <p className="font-semibold">{from}</p>
-             <div className="flex flex-col items-center">
-                <span className="text-lg font-bold">{count}</span>
-                <ArrowRight className="w-8 h-4 text-muted-foreground" />
-             </div>
-             <p className="font-semibold">{to}</p>
-        </div>
-    );
 
     return (
         <Card>
             <CardHeader>
                 <CardTitle>Funnel Analysis</CardTitle>
-                <CardDescription>Conversion rates and counts for the selected period.</CardDescription>
+                <CardDescription>Conversion rates for the selected period, based on First Meetings ({firstMeetingCount}).</CardDescription>
             </CardHeader>
             <CardContent className="space-y-6">
                 <div>
                      <h4 className="font-semibold text-lg mb-4 text-center">Conversion Percentages</h4>
-                     <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
-                        <AnalysisMetric value={firstMeetingCount} label="Total First Meetings" icon={Users} />
+                     <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                         <AnalysisMetric value={pct_first_to_recce} label="% First Meeting to Recce" isPercentage />
                         <AnalysisMetric value={pct_tddm} label="% TDDM from First Meeting" isPercentage />
                         <AnalysisMetric value={pct_adv_meeting} label="% Adv. Meeting from First Meeting" isPercentage />
                         <AnalysisMetric value={pct_closure} label="% Closure from First Meeting" isPercentage />
-                    </div>
-                </div>
-                 <div>
-                     <h4 className="font-semibold text-lg mb-4 text-center">Stage-to-Stage Conversion Counts</h4>
-                     <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                        <ConversionMetric count={cnt_meeting_to_recce} from="Meeting" to="Recce" />
-                        <ConversionMetric count={cnt_recce_to_tddm} from="Recce" to="TDDM" />
-                        <ConversionMetric count={cnt_tddm_to_adv_meeting} from="TDDM" to="Adv. Meeting" />
-                        <ConversionMetric count={cnt_adv_meeting_to_closure} from="Adv. Meeting" to="Closure" />
                     </div>
                 </div>
             </CardContent>
@@ -834,5 +805,7 @@ export default function Journey360Page() {
     
 
 
+
+    
 
     
