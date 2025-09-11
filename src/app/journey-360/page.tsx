@@ -349,7 +349,7 @@ export default function Journey360Page() {
           
           j.history.forEach(event => {
               if (isWithinInterval(new Date(event.timestamp), dateRange)) {
-                  if (event.stage.task === 'Recce' && event.stage.subTask === 'Recce Form Submission') {
+                  if (event.stage.task === 'Recce' && event.stage.subTask === 'Post Recce Follow Up') {
                       achievedCrns.Recce.add(j.crn);
                       hasQuotedGmvInPeriod = true;
                   }
@@ -368,8 +368,10 @@ export default function Journey360Page() {
               }
           });
           
-          if (hasQuotedGmvInPeriod && j.quotedGmv && j.quotedGmv > 0) {
-            quotedGmv += j.quotedGmv;
+          // Note: This logic for quotedGmv might need refinement if it's tied to 'Post Recce Follow Up'
+          const recceFormEvent = j.history.find(e => e.stage.subTask === 'Recce Form Submission' && isWithinInterval(new Date(e.timestamp), dateRange));
+          if(recceFormEvent && j.quotedGmv && j.quotedGmv > 0) {
+              quotedGmv += j.quotedGmv;
           }
       });
       
@@ -812,3 +814,5 @@ export default function Journey360Page() {
 }
 
     
+
+  
