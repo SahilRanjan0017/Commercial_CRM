@@ -26,7 +26,7 @@ import ProfileLogout from '@/components/profile-logout';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 
 
-type JourneyFilter = Task | 'All' | 'QuotedGMV' | 'FinalGMV' | 'FirstMeeting' | 'QualifyingMeeting';
+type JourneyFilter = Task | 'FirstMeeting' | 'QualifyingMeeting' | 'QuotedGMV' | 'FinalGMV';
 
 interface TaskGmvHistoryItem {
   task: string;
@@ -220,7 +220,7 @@ const FunnelAnalysis = ({ journeys, cityFilter, monthFilter }: { journeys: Custo
 export default function Journey360Page() {
   const [journeys, setJourneys] = useState<CustomerJourney[]>([]);
   const [loading, setLoading] = useState(true);
-  const [activeFilter, setActiveFilter] = useState<JourneyFilter>('All');
+  const [activeFilter, setActiveFilter] = useState<JourneyFilter>('FirstMeeting');
   const [cityFilter, setCityFilter] = useState<string>('All');
   const [monthFilter, setMonthFilter] = useState<string>('MTD');
   const [crnSearch, setCrnSearch] = useState('');
@@ -291,11 +291,9 @@ export default function Journey360Page() {
         });
     };
 
-    if (activeFilter === 'All') {
-        const monthFilterMatch = journey.history.length > 0
-            ? journey.history.some(event => isWithinInterval(new Date(event.timestamp), dateRange))
-            : (journey.createdAt && isWithinInterval(new Date(journey.createdAt), dateRange));
-        return searchFilterMatch && cityFilterMatch && monthFilterMatch;
+    if (activeFilter === 'FirstMeeting') {
+        const firstMeetingMatch = journey.createdAt && isWithinInterval(new Date(journey.createdAt), dateRange);
+        return searchFilterMatch && cityFilterMatch && firstMeetingMatch;
     }
 
     if (activeFilter === 'QuotedGMV') {
@@ -643,7 +641,7 @@ export default function Journey360Page() {
                 </CardHeader>
                 <div className="px-6 pb-4 border-b flex flex-col sm:flex-row gap-4 items-center">
                     <div className="flex items-center gap-2 flex-wrap">
-                        <Button variant={activeFilter === 'All' ? 'default' : 'outline'} size="sm" onClick={() => setActiveFilter('All')}>All Stages</Button>
+                        <Button variant={activeFilter === 'FirstMeeting' ? 'default' : 'outline'} size="sm" onClick={() => setActiveFilter('FirstMeeting')}>First Meeting</Button>
                         {tasks.map(task => (<Button key={task} variant={activeFilter === task ? 'default' : 'outline'} size="sm" onClick={() => setActiveFilter(task)}>{task}</Button>))}
                     </div>
                     <div className="flex-grow sm:flex-grow-0 sm:ml-auto flex items-center gap-2">
@@ -835,3 +833,6 @@ export default function Journey360Page() {
 
     
 
+
+
+    

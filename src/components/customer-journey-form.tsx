@@ -47,6 +47,7 @@ export function CustomerJourneyForm() {
             setCurrentStagePreview(stage);
             setCrnExists(true);
         } catch (error) {
+            console.error("CRN check failed:", error);
             setCrnExists(false);
             setCurrentStagePreview(null);
         }
@@ -224,7 +225,7 @@ export function CustomerJourneyForm() {
                     {isCheckingCrn && <div className="flex items-center text-sm text-muted-foreground"><Loader2 className="mr-2 h-4 w-4 animate-spin" />Checking...</div>}
                     
                     {crnExists === true && currentStagePreview && !isCheckingCrn && (
-                        <div className="text-sm font-medium p-3 bg-secondary rounded-md">
+                        <div className="text-sm font-medium p-3 bg-secondary/20 text-secondary-foreground rounded-md">
                             <span className="text-muted-foreground">Current Stage:</span> {currentStagePreview.task} - {currentStagePreview.subTask}
                         </div>
                     )}
