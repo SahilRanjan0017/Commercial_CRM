@@ -128,12 +128,10 @@ const FunnelAnalysis = ({ journeys, cityFilter, monthFilter }: { journeys: Custo
     };
 
     journeysInScope.forEach(j => {
-        // First meetings are counted based on creation date in the period
         if (j.createdAt && isWithinInterval(new Date(j.createdAt), dateRange)) {
             stageCrns.FirstMeeting.add(j.crn);
         }
         
-        // Other stages are based on event history in the period
         j.history.forEach(event => {
             if (isWithinInterval(new Date(event.timestamp), dateRange)) {
                 if (event.stage.task === 'Recce') stageCrns.Recce.add(j.crn);
@@ -145,30 +143,17 @@ const FunnelAnalysis = ({ journeys, cityFilter, monthFilter }: { journeys: Custo
     });
     
     const firstMeetingCount = stageCrns.FirstMeeting.size;
-    
-    if (firstMeetingCount === 0) {
-        return (
-            <Card>
-                <CardHeader>
-                    <CardTitle>Funnel Analysis</CardTitle>
-                </CardHeader>
-                <CardContent>
-                    <p className="text-muted-foreground">No new first meetings in the selected period.</p>
-                </CardContent>
-            </Card>
-        );
-    }
-    
     const recceCount = stageCrns.Recce.size;
     const tddmCount = stageCrns.TDDM.size;
     const advanceMeetingCount = stageCrns['Advance Meeting'].size;
     const closureCount = stageCrns.Closure.size;
 
-    const pct_first_to_recce = firstMeetingCount > 0 ? (recceCount / firstMeetingCount) * 100 : 0;
-    const pct_tddm = firstMeetingCount > 0 ? (tddmCount / firstMeetingCount) * 100 : 0;
-    const pct_adv_meeting = firstMeetingCount > 0 ? (advanceMeetingCount / firstMeetingCount) * 100 : 0;
-    const pct_closure = firstMeetingCount > 0 ? (closureCount / firstMeetingCount) * 100 : 0;
-
+    const pct_meeting_to_recce = firstMeetingCount > 0 ? (recceCount / firstMeetingCount) * 100 : 0;
+    const pct_recce_to_tddm = recceCount > 0 ? (tddmCount / recceCount) * 100 : 0;
+    const pct_tddm_to_adv = tddmCount > 0 ? (advanceMeetingCount / tddmCount) * 100 : 0;
+    const pct_adv_to_closure = advanceMeetingCount > 0 ? (closureCount / advanceMeetingCount) * 100 : 0;
+    const pct_meeting_to_closure = firstMeetingCount > 0 ? (closureCount / firstMeetingCount) * 100 : 0;
+    
     const AnalysisMetric = ({ value, label, isPercentage = false, icon: Icon }: { value: string | number, label: string, isPercentage?: boolean, icon?: React.ElementType }) => (
         <div className="flex flex-col items-center justify-center p-4 rounded-lg bg-muted/50">
             <div className="flex items-baseline gap-2">
@@ -180,22 +165,19 @@ const FunnelAnalysis = ({ journeys, cityFilter, monthFilter }: { journeys: Custo
         </div>
     );
     
-
     return (
         <Card>
             <CardHeader>
                 <CardTitle>Funnel Analysis</CardTitle>
-                <CardDescription>Conversion rates for the selected period, based on First Meetings ({firstMeetingCount}).</CardDescription>
+                <CardDescription>Stage-to-stage conversion rates for the selected period.</CardDescription>
             </CardHeader>
-            <CardContent className="space-y-6">
-                <div>
-                     <h4 className="font-semibold text-lg mb-4 text-center">Conversion Percentages</h4>
-                     <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                        <AnalysisMetric value={pct_first_to_recce} label="% First Meeting to Recce" isPercentage />
-                        <AnalysisMetric value={pct_tddm} label="% TDDM from First Meeting" isPercentage />
-                        <AnalysisMetric value={pct_adv_meeting} label="% Adv. Meeting from First Meeting" isPercentage />
-                        <AnalysisMetric value={pct_closure} label="% Closure from First Meeting" isPercentage />
-                    </div>
+            <CardContent>
+                 <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
+                    <AnalysisMetric value={pct_meeting_to_recce} label="Meeting to Recce" isPercentage />
+                    <AnalysisMetric value={pct_recce_to_tddm} label="Recce to TDDM" isPercentage />
+                    <AnalysisMetric value={pct_tddm_to_adv} label="TDDM to Advance Meeting" isPercentage />
+                    <AnalysisMetric value={pct_adv_to_closure} label="Advance Meeting to Closure" isPercentage />
+                    <AnalysisMetric value={pct_meeting_to_closure} label="Meeting to Closure" isPercentage />
                 </div>
             </CardContent>
         </Card>
@@ -796,7 +778,5 @@ export default function Journey360Page() {
     </Dialog>
   );
 }
-
-    
 
     
