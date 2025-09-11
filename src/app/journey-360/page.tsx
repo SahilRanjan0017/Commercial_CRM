@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useEffect, useMemo } from 'react';
@@ -97,18 +98,12 @@ const FunnelAnalysis = ({ journeys, cityFilter, monthFilter }: { journeys: Custo
 
     const dateRange = getDateRangeForFilter(monthFilter);
 
-    const filteredJourneys = journeys.filter(journey => {
-        let cityFilterMatch = true;
+    const journeysInScope = journeys.filter(journey => {
         if (cityFilter !== 'All') {
-            cityFilterMatch = cityGroups[cityFilter]?.includes(journey.city) ?? false;
+            return cityGroups[cityFilter]?.includes(journey.city) ?? false;
         }
-        const monthFilterMatch = journey.history.length > 0
-            ? journey.history.some(event => isWithinInterval(new Date(event.timestamp), dateRange))
-            : journey.createdAt ? isWithinInterval(new Date(journey.createdAt), dateRange) : false;
-        return cityFilterMatch && monthFilterMatch;
+        return true;
     });
-
-    const uniqueCrnsInPeriod = new Set(filteredJourneys.map(j => j.crn));
 
     const stageCrns = {
         'FirstMeeting': new Set<string>(),
@@ -118,11 +113,13 @@ const FunnelAnalysis = ({ journeys, cityFilter, monthFilter }: { journeys: Custo
         'Closure': new Set<string>(),
     };
 
-    filteredJourneys.forEach(j => {
+    journeysInScope.forEach(j => {
+        // First meetings are counted based on creation date in the period
         if (j.createdAt && isWithinInterval(new Date(j.createdAt), dateRange)) {
             stageCrns.FirstMeeting.add(j.crn);
         }
-
+        
+        // Other stages are based on event history in the period
         j.history.forEach(event => {
             if (isWithinInterval(new Date(event.timestamp), dateRange)) {
                 if (event.stage.task === 'Recce') stageCrns.Recce.add(j.crn);
@@ -132,22 +129,22 @@ const FunnelAnalysis = ({ journeys, cityFilter, monthFilter }: { journeys: Custo
             }
         });
     });
-
-    const totalCrns = uniqueCrnsInPeriod.size;
-    if (totalCrns === 0) {
+    
+    const firstMeetingCount = stageCrns.FirstMeeting.size;
+    
+    if (firstMeetingCount === 0) {
         return (
             <Card>
                 <CardHeader>
                     <CardTitle>Funnel Analysis</CardTitle>
                 </CardHeader>
                 <CardContent>
-                    <p className="text-muted-foreground">No data for the selected filters.</p>
+                    <p className="text-muted-foreground">No new first meetings in the selected period.</p>
                 </CardContent>
             </Card>
         );
     }
     
-    const firstMeetingCount = stageCrns.FirstMeeting.size;
     const recceCount = stageCrns.Recce.size;
     const tddmCount = stageCrns.TDDM.size;
     const advanceMeetingCount = stageCrns['Advance Meeting'].size;
@@ -837,3 +834,4 @@ export default function Journey360Page() {
   
 
     
+
