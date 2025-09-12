@@ -41,7 +41,7 @@ export default function LoginPage({
               Enter your email below to login to your account
             </p>
           </div>
-          <form className="grid gap-4">
+          <form action={login} className="grid gap-4">
             <div className="grid gap-2">
               <Label htmlFor="email">Email</Label>
               <Input
@@ -58,7 +58,7 @@ export default function LoginPage({
               </div>
               <Input id="password" name="password" type="password" required />
             </div>
-            <Button formAction={login} className="w-full">
+            <Button type="submit" className="w-full">
               Login
             </Button>
             {searchParams?.message && (
