@@ -1,6 +1,7 @@
 
 // src/app/api/auth/signup/route.ts
 import { createClient } from '@/utils/supabase/server'
+import { cookies } from 'next/headers'
 import { NextRequest, NextResponse } from 'next/server'
 
 export async function POST(request: NextRequest) {
@@ -17,8 +18,8 @@ export async function POST(request: NextRequest) {
       redirectUrl.searchParams.set('message', 'Please fill in all required fields')
       return NextResponse.redirect(redirectUrl)
     }
-
-    const supabase = createClient()
+    const cookieStore = cookies()
+    const supabase = createClient(cookieStore)
 
     const { data, error } = await supabase.auth.signUp({
       email,

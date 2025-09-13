@@ -2,11 +2,12 @@
 import { createClient as createServerClient } from '@/utils/supabase/server';
 import type { CustomerJourney, StageEvent, Task, SubTask, NewJourneyDetails, RecceFormSubmissionData, PostRecceFollowUpData, TDDMInitialMeetingData, TDDMFollowUpData, NegotiationData, SiteVisitData, AgreementDiscussionData, AdvanceMeetingFollowUpData, ClosureMeetingData, PostClosureFollowUpData } from '@/types';
 import { stageMap, tasks } from '@/types';
+import { cookies, type ReadonlyRequestCookies } from 'next/headers';
 
 
 // Helper function to insert data into the correct stage table
-async function insertStageEvent(event: StageEvent) {
-  const supabase = createServerClient();
+async function insertStageEvent(event: StageEvent, cookieStore: ReadonlyRequestCookies) {
+  const supabase = createServerClient(cookieStore);
   const { task, subTask } = event.stage;
   let dataToInsert: any;
   let tableName: string;
@@ -145,8 +146,8 @@ async function insertStageEvent(event: StageEvent) {
   }
 }
 
-export async function updateJourney(journey: CustomerJourney): Promise<void> {
-  const supabase = createServerClient();
+export async function updateJourney(journey: CustomerJourney, cookieStore: ReadonlyRequestCookies): Promise<void> {
+  const supabase = createServerClient(cookieStore);
   
   const latestEvent = journey.history[journey.history.length - 1];
 
@@ -204,7 +205,7 @@ export async function updateJourney(journey: CustomerJourney): Promise<void> {
 
   // Step 4: Insert the latest event into the corresponding stage table
   if (latestEvent) {
-    await insertStageEvent(latestEvent);
+    await insertStageEvent(latestEvent, cookieStore);
   }
 }
 
@@ -301,8 +302,8 @@ function rehydrateEvent(event: any, task: Task): StageEvent {
     return { ...baseEvent, stage, ...specificData } as StageEvent;
 }
 
-export async function getAllJourneys(): Promise<CustomerJourney[]> {
-    const supabase = createServerClient();
+export async function getAllJourneys(cookieStore: ReadonlyRequestCookies): Promise<CustomerJourney[]> {
+    const supabase = createServerClient(cookieStore);
     const [recceHistory, tddmHistory, advanceMeetingHistory, closureHistory, rawDataResponse, journeyDataResponse] = await Promise.all([
         supabase.from('recce_data').select('*'),
         supabase.from('tddm_data').select('*'),
@@ -392,8 +393,8 @@ export async function getAllJourneys(): Promise<CustomerJourney[]> {
 }
 
 
-export async function getStageForCrn(crn: string): Promise<StageRef | null> {
-  const supabase = createServerClient();
+export async function getStageForCrn(crn: string, cookieStore: ReadonlyRequestCookies): Promise<StageRef | null> {
+  const supabase = createServerClient(cookieStore);
   const { data, error } = await supabase
     .from('journey_data')
     .select('current_task, current_subtask, raw_data(city)')
@@ -428,8 +429,8 @@ export async function getStageForCrn(crn: string): Promise<StageRef | null> {
 }
 
 
-export async function getJourney(crn: string, newJourneyDetails: NewJourneyDetails): Promise<CustomerJourney> {
-    const supabase = createServerClient();
+export async function getJourney(crn: string, newJourneyDetails: NewJourneyDetails, cookieStore: ReadonlyRequestCookies): Promise<CustomerJourney> {
+    const supabase = createServerClient(cookieStore);
     const { data: journeyData, error: journeyError } = await supabase
         .from('journey_data')
         .select(`
@@ -535,7 +536,7 @@ export async function getJourney(crn: string, newJourneyDetails: NewJourneyDetai
     };
 
     // Immediately save this new journey to Supabase
-    await updateJourney(newJourney);
+    await updateJourney(newJourney, cookieStore);
 
     return newJourney;
 }

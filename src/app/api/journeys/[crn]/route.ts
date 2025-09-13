@@ -2,6 +2,7 @@
 import { NextResponse } from 'next/server';
 import { getJourney, getStageForCrn, updateJourney } from '@/services/supabase';
 import type { CustomerJourney } from '@/types';
+import { cookies } from 'next/headers';
 
 export async function GET(
   request: Request,
@@ -9,7 +10,8 @@ export async function GET(
 ) {
   const crn = params.crn;
   try {
-    const stage = await getStageForCrn(crn);
+    const cookieStore = cookies();
+    const stage = await getStageForCrn(crn, cookieStore);
     if (!stage) {
       return NextResponse.json({ message: `Journey with CRN ${crn} not found` }, { status: 404 });
     }
@@ -28,7 +30,8 @@ export async function POST(
   const crn = params.crn;
   const newJourneyDetails = await request.json();
   try {
-    const journey = await getJourney(crn, newJourneyDetails);
+    const cookieStore = cookies();
+    const journey = await getJourney(crn, newJourneyDetails, cookieStore);
     return NextResponse.json(journey);
   } catch (error) {
     console.error(`Error loading journey for CRN ${crn}:`, error);
@@ -45,7 +48,8 @@ export async function PUT(
         return NextResponse.json({ message: 'CRN in URL and body do not match' }, { status: 400 });
     }
     try {
-        await updateJourney(journey);
+        const cookieStore = cookies();
+        await updateJourney(journey, cookieStore);
         return NextResponse.json({ message: 'Journey updated successfully' });
     } catch (error) {
         console.error(`Error updating journey for CRN ${params.crn}:`, error);

@@ -1,5 +1,6 @@
 // src/app/api/auth/login/route.ts
 import { createClient } from '@/utils/supabase/server'
+import { cookies } from 'next/headers'
 import { NextRequest, NextResponse } from 'next/server'
 
 export async function POST(request: NextRequest) {
@@ -7,11 +8,8 @@ export async function POST(request: NextRequest) {
   const formData = await request.formData()
   const email = formData.get('email') as string
   const password = formData.get('password') as string
-  
-  // Create a response object that we can modify
-  const response = NextResponse.redirect(requestUrl.origin)
-  
-  const supabase = createClient(request, response)
+  const cookieStore = cookies()
+  const supabase = createClient(cookieStore)
 
   if (!email || !password) {
     return NextResponse.redirect(`${requestUrl.origin}/login?message=Email and password are required`, {
@@ -38,7 +36,7 @@ export async function POST(request: NextRequest) {
     })
   }
 
-  // Successful login - redirect to home page, the cookies are already set on the response object
+  // Successful login - redirect to home page
   return NextResponse.redirect(`${requestUrl.origin}/`, {
     status: 302,
   })
