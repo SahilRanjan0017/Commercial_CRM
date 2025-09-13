@@ -1,7 +1,6 @@
 
 "use client";
 
-import { signup } from "../login/actions";
 import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 import Image from "next/image";
@@ -37,7 +36,7 @@ export default function SignupPage() {
             </p>
           )}
 
-          <form action={signup} className="grid gap-4">
+          <form action="/api/auth/signup" method="POST" className="grid gap-4">
               <div className="grid gap-2">
                   <Label htmlFor="full_name">Name</Label>
                   <Input
