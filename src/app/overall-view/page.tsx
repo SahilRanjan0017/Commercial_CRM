@@ -216,6 +216,7 @@ export default function OverallViewPage() {
             }
         });
         
+        totals.closure.tva = totals.closure.target > 0 ? (totals.closure.achieved / totals.closure.target) * 100 : 0;
         totals.gmv.tva = totals.gmv.target > 0 ? (totals.gmv.final / totals.gmv.target) * 100 : 0;
 
         return totals;
@@ -404,5 +405,7 @@ export default function OverallViewPage() {
         </div>
     );
 }
+
+    
 
     
