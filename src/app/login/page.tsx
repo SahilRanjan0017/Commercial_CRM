@@ -1,3 +1,4 @@
+
 import { login } from './actions'
 import { Button } from '@/components/ui/button'
 import {
@@ -15,9 +16,12 @@ import Image from 'next/image'
 export default async function LoginPage({
   searchParams,
 }: {
-  searchParams: { message: string }
+  searchParams: Promise<{ message?: string }>
 }) {
-  const message = searchParams.message;
+  // Await the searchParams to get the actual values
+  const params = await searchParams;
+  const message = params?.message;
+  
   return (
     <div className="w-full min-h-screen lg:grid lg:grid-cols-2">
       <div className="hidden bg-muted lg:block">
@@ -34,7 +38,13 @@ export default async function LoginPage({
         <div className="mx-auto grid w-[350px] gap-6">
           <div className="grid gap-2 text-center">
              <Link href="/" className="flex justify-center">
-                <Image src="https://d2d4xyu1zrrrws.cloudfront.net/website/web-ui/assets/images/logo/bnb_logo.svg" alt="FlowTrack Logo" width={192} height={192} className="text-primary" />
+                <Image 
+                  src="https://d2d4xyu1zrrrws.cloudfront.net/website/web-ui/assets/images/logo/bnb_logo.svg" 
+                  alt="FlowTrack Logo" 
+                  width={192} 
+                  height={192} 
+                  className="text-primary" 
+                />
             </Link>
             <h1 className="text-3xl font-bold">Login</h1>
             <p className="text-balance text-muted-foreground">
