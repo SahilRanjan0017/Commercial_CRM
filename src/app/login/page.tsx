@@ -1,83 +1,124 @@
-import { Button } from '@/components/ui/button'
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from '@/components/ui/card'
-import { Input } from '@/components/ui/input'
-import { Label } from '@/components/ui/label'
-import Link from 'next/link'
-import Image from 'next/image'
+"use client";
 
-export default async function LoginPage({
-  searchParams,
-}: {
-  searchParams: Promise<{ message?: string }>
-}) {
-  // Await the searchParams to get the actual values
-  const params = await searchParams;
-  const message = params?.message;
-  
+import { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
+import Link from "next/link";
+import Image from "next/image";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { hashPassword } from "@/utils/hashPassword";
+import { createClientComponentClient } from "@supabase/auth-helpers-nextjs";
+
+export default function LoginPage() {
+  const router = useRouter();
+  const supabase = createClientComponentClient();
+
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [message, setMessage] = useState<string | null>(null);
+
+  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    setLoading(true);
+    setError(null);
+
+    const formData = new FormData(e.currentTarget);
+    const email = formData.get("email") as string;
+    let password = formData.get("password") as string;
+
+    try {
+      // Optional: client-side deterministic hash
+      password = await hashPassword(password);
+
+      console.log("Login password : ", password);
+
+      const { data, error } = await supabase.auth.signInWithPassword({
+        email,
+        password,
+      });
+
+      console.log("Login data : ", data);
+
+
+      if (error) throw error;
+
+      if (data.session) {
+        // SPA-friendly redirect without query string
+        sessionStorage.setItem("userSession", JSON.stringify(data.session));
+        setMessage("Login successful!");
+        router.replace("/");
+      }
+
+      if(data.user){
+        sessionStorage.setItem("userDetails", JSON.stringify(data.user));
+      }
+    } catch (err: any) {
+      setError(err.message || "Login failed");
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return (
     <div className="w-full min-h-screen lg:grid lg:grid-cols-2">
       <div className="hidden bg-muted lg:block">
         <Image
           src="https://i.postimg.cc/NMVQQKY6/bnb.avif"
           alt="Image"
-          width="1920"
-          height="1080"
+          width={1920}
+          height={1080}
           className="h-full w-full object-cover dark:brightness-[0.2] dark:grayscale"
-          data-ai-hint="building construction"
         />
       </div>
+
       <div className="flex items-center justify-center py-12">
         <div className="mx-auto grid w-[350px] gap-6">
           <div className="grid gap-2 text-center">
-             <Link href="/" className="flex justify-center">
-                <Image 
-                  src="https://d2d4xyu1zrrrws.cloudfront.net/website/web-ui/assets/images/logo/bnb_logo.svg" 
-                  alt="FlowTrack Logo" 
-                  width={192} 
-                  height={192} 
-                  className="text-primary" 
-                />
+            <Link href="/" className="flex justify-center">
+              <Image
+                src="https://d2d4xyu1zrrrws.cloudfront.net/website/web-ui/assets/images/logo/bnb_logo.svg"
+                alt="FlowTrack Logo"
+                width={192}
+                height={192}
+              />
             </Link>
             <h1 className="text-3xl font-bold">Login</h1>
-            <p className="text-balance text-muted-foreground">
+            <p className="text-muted-foreground">
               Enter your email below to login to your account
             </p>
           </div>
-          {/* Changed from Server Action to API route */}
-          <form action="/api/auth/login" method="POST" className="grid gap-4">
+
+          {message && (
+            <p className="mt-4 p-4 bg-green-100 text-green-800 text-center text-sm rounded">
+              {message}
+            </p>
+          )}
+
+          {error && (
+            <p className="mt-4 p-4 bg-red-100 text-red-700 text-center text-sm rounded">
+              {error}
+            </p>
+          )}
+
+          <form onSubmit={handleSubmit} className="grid gap-4">
             <div className="grid gap-2">
               <Label htmlFor="email">Email</Label>
-              <Input
-                id="email"
-                name="email"
-                type="email"
-                placeholder="jhon@example.com"
-                required
-              />
+              <Input id="email" name="email" type="email" placeholder="you@example.com" required />
             </div>
+
             <div className="grid gap-2">
-              <div className="flex items-center">
-                <Label htmlFor="password">Password</Label>
-              </div>
-              <Input id="password" name="password" type="password" required />
+              <Label htmlFor="password">Password</Label>
+              <Input id="password" name="password" type="password" placeholder="•••••••••" required />
             </div>
-            <Button type="submit" className="w-full">
-              Login
+
+            <Button type="submit" className="w-full" disabled={loading}>
+              {loading ? "Logging in..." : "Login"}
             </Button>
-            {message && (
-              <p className="mt-4 p-4 bg-foreground/10 text-foreground text-center text-sm">
-                {message}
-              </p>
-            )}
           </form>
+
           <div className="mt-4 text-center text-sm">
-            Don&apos;t have an account?{' '}
+            Don't have an account?{" "}
             <Link href="/signup" className="underline">
               Sign up
             </Link>
@@ -85,5 +126,5 @@ export default async function LoginPage({
         </div>
       </div>
     </div>
-  )
+  );
 }
