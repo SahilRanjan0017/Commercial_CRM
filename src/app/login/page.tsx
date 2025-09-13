@@ -41,7 +41,7 @@ export default function LoginPage({
               Enter your email below to login to your account
             </p>
           </div>
-          <form action={login} method="post" className="grid gap-4">
+          <form action={login} className="grid gap-4">
             <div className="grid gap-2">
               <Label htmlFor="email">Email</Label>
               <Input
