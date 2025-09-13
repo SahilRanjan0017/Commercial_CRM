@@ -17,6 +17,7 @@ export default function LoginPage({
 }: {
   searchParams: { message: string }
 }) {
+  const message = searchParams.message;
   return (
     <div className="w-full min-h-screen lg:grid lg:grid-cols-2">
       <div className="hidden bg-muted lg:block">
@@ -40,7 +41,7 @@ export default function LoginPage({
               Enter your email below to login to your account
             </p>
           </div>
-          <form action={login} method="post" className="grid gap-4">
+          <form action={login} className="grid gap-4">
             <div className="grid gap-2">
               <Label htmlFor="email">Email</Label>
               <Input
@@ -60,9 +61,9 @@ export default function LoginPage({
             <Button type="submit" className="w-full">
               Login
             </Button>
-            {searchParams?.message && (
+            {message && (
               <p className="mt-4 p-4 bg-foreground/10 text-foreground text-center text-sm">
-                {searchParams.message}
+                {message}
               </p>
             )}
           </form>
