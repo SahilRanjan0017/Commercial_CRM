@@ -1,14 +1,15 @@
 
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { getJourney, getStageForCrn, updateJourney } from '@/services/supabase';
 import type { CustomerJourney } from '@/types';
 import { cookies } from 'next/headers';
 
 export async function GET(
-  request: Request,
-  { params }: { params: { crn: string } }
+  request: NextRequest,
+  context: { params: Promise<{ crn: string }> }
 ) {
-  const crn = params.crn;
+   const { params } = context;
+  const { crn } = await params; 
   try {
     const cookieStore = cookies();
     const stage = await getStageForCrn(crn, cookieStore);
@@ -24,10 +25,11 @@ export async function GET(
 
 
 export async function POST(
-  request: Request,
-  { params }: { params: { crn: string } }
+  request: NextRequest,
+  context: { params: Promise<{ crn: string }> }
 ) {
-  const crn = params.crn;
+  const { params } = context;
+  const { crn } = await params;  
   const newJourneyDetails = await request.json();
   try {
     const cookieStore = cookies();
@@ -40,11 +42,13 @@ export async function POST(
 }
 
 export async function PUT(
-  request: Request,
-  { params }: { params: { crn: string } }
+  request: NextRequest,
+  context: { params: Promise<{ crn: string }> }
 ) {
+    const { params } = context;
+    const { crn } = await params; 
     const journey: CustomerJourney = await request.json();
-    if (params.crn !== journey.crn) {
+    if (crn !== journey.crn) {
         return NextResponse.json({ message: 'CRN in URL and body do not match' }, { status: 400 });
     }
     try {
@@ -52,7 +56,7 @@ export async function PUT(
         await updateJourney(journey, cookieStore);
         return NextResponse.json({ message: 'Journey updated successfully' });
     } catch (error) {
-        console.error(`Error updating journey for CRN ${params.crn}:`, error);
+        console.error(`Error updating journey for CRN ${crn}:`, error);
         return NextResponse.json({ message: 'Error updating journey' }, { status: 500 });
     }
 }
