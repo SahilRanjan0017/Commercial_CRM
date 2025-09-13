@@ -12,7 +12,7 @@ import { Label } from '@/components/ui/label'
 import Link from 'next/link'
 import Image from 'next/image'
 
-export default function LoginPage({
+export default async function LoginPage({
   searchParams,
 }: {
   searchParams: { message: string }
