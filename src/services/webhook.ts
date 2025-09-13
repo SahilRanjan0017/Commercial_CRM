@@ -1,5 +1,4 @@
 
-'use server';
 
 import type { TDDMInitialMeetingData } from '@/types';
 import { format } from 'date-fns';
