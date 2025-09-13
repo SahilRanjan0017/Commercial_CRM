@@ -7,19 +7,19 @@ export function createClient(cookieStore: ReturnType<typeof cookies>) {
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
     {
       cookies: {
-        getAll() {
-          return cookieStore.getAll()
+        getAll(): any {
+          cookieStore.then((res)=>{
+            return res.getAll();
+          }).catch((err)=> {
+            return err;
+          })
         },
         setAll(cookiesToSet) {
-          try {
-            cookiesToSet.forEach(({ name, value, options }) =>
-              cookieStore.set(name, value, options)
-            )
-          } catch {
-            // The `setAll` method was called from a Server Component.
-            // This can be ignored if you have middleware refreshing
-            // user sessions.
-          }
+          cookiesToSet.forEach(({ name, value, options }) =>
+            cookieStore.then((res)=> res.set(name, value, options)).catch((err)=>{
+              console.log("Error while setting the cookies.. ", err)
+            })
+          )
         },
       },
     }
