@@ -1,18 +1,16 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import Image from "next/image";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { hashPassword } from "@/utils/hashPassword";
-import { createClientComponentClient } from "@supabase/auth-helpers-nextjs";
+import {hashPassword} from '@/utils/hashPassword'
 
 export default function LoginPage() {
   const router = useRouter();
-  const supabase = createClientComponentClient();
 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -26,33 +24,27 @@ export default function LoginPage() {
     const formData = new FormData(e.currentTarget);
     const email = formData.get("email") as string;
     let password = formData.get("password") as string;
+    password = await hashPassword(password);
 
     try {
-      // Optional: client-side deterministic hash
-      password = await hashPassword(password);
-
-      console.log("Login password : ", password);
-
-      const { data, error } = await supabase.auth.signInWithPassword({
-        email,
-        password,
+      // Call server JSON API for login
+      const res = await fetch("/api/auth/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email, password }),
       });
 
-      console.log("Login data : ", data);
+      const json = await res.json();
 
-
-      if (error) throw error;
-
-      if (data.session) {
-        // SPA-friendly redirect without query string
-        sessionStorage.setItem("userSession", JSON.stringify(data.session));
-        setMessage("Login successful!");
-        router.replace("/");
+      if (!res.ok || !json?.ok) {
+        setError(json?.message || "Login failed");
+        return;
       }
 
-      if(data.user){
-        sessionStorage.setItem("userDetails", JSON.stringify(data.user));
-      }
+      setMessage("Login successful! Redirecting...");
+      // Redirect to home; middleware will allow it now that cookies are set
+      router.replace("/");
+      router.refresh();
     } catch (err: any) {
       setError(err.message || "Login failed");
     } finally {
@@ -109,7 +101,7 @@ export default function LoginPage() {
 
             <div className="grid gap-2">
               <Label htmlFor="password">Password</Label>
-              <Input id="password" name="password" type="password" placeholder="•••••••••" required />
+              <Input id="password" name="password" type="password" required />
             </div>
 
             <Button type="submit" className="w-full" disabled={loading}>

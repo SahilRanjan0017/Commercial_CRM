@@ -14,25 +14,10 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip"
 import ProfileLogout from '@/components/profile-logout';
-import { useRouter } from 'next/router';
+import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
 
 export default function Home() {
-
-  const userDetails = sessionStorage.getItem("userDetails");
-  const userSession = sessionStorage.getItem("userSession");
-
-  const router = useRouter();
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    if(isNullOrUndefined(userDetails) || isNullOrUndefined(userSession)){
-      router.push("/login");
-    }  
-  }, []);
-
-  if (loading) return <div>Loading...</div>;
-
 
   return (
     <div className="relative h-screen w-full bg-background text-foreground flex flex-col p-4 sm:p-6 lg:p-8 gap-8">

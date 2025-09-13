@@ -4,20 +4,37 @@ import { cookies } from 'next/headers'
 import { NextRequest, NextResponse } from 'next/server'
 
 export async function POST(request: NextRequest) {
-  const requestUrl = new URL(request.url)
-  const formData = await request.formData()
-  const email = formData.get('email') as string
-  const password = formData.get('password') as string
+  console.log("Login request received");
+  const contentType = request.headers.get('content-type') || ''
+  let email = ''
+  let password = ''
+  try {
+    if (contentType.includes('application/json')) {
+      const body = await request.json()
+      email = body.email ?? ''
+      password = body.password ?? ''
+    } else {
+      const formData = await request.formData()
+      email = (formData.get('email') as string) || ''
+      password = (formData.get('password') as string) || ''
+    }
+  } catch (e) {
+    return NextResponse.json(
+      { ok: false, message: 'Invalid request payload' },
+      { status: 400 }
+    )
+  }
   const cookieStore = cookies()
   const supabase = createClient(cookieStore)
 
   if (!email || !password) {
-    return NextResponse.redirect(`${requestUrl.origin}/login?message=Email and password are required`, {
-      status: 302,
-    })
+    return NextResponse.json(
+      { ok: false, message: 'Email and password are required' },
+      { status: 400 }
+    )
   }
 
-  const { error } = await supabase.auth.signInWithPassword({
+  const { data, error } = await supabase.auth.signInWithPassword({
     email,
     password,
   })
@@ -31,13 +48,12 @@ export async function POST(request: NextRequest) {
     } else {
       message = error.message
     }
-     return NextResponse.redirect(`${requestUrl.origin}/login?message=${encodeURIComponent(message)}`, {
-      status: 302,
-    })
+    return NextResponse.json({ ok: false, message }, { status: 401 })
   }
 
-  // Successful login - redirect to home page
-  return NextResponse.redirect(`${requestUrl.origin}/`, {
-    status: 302,
-  })
+  // Ensure cookies are available before redirect
+  await supabase.auth.getSession()
+
+  // Successful login
+  return NextResponse.json({ ok: true, message: 'Login successful', data:data })
 }
