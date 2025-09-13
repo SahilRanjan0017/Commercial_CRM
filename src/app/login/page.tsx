@@ -57,7 +57,7 @@ export default async function LoginPage({
                 id="email"
                 name="email"
                 type="email"
-                placeholder="m@example.com"
+                placeholder="jhon@example.com"
                 required
               />
             </div>
