@@ -1,90 +1,61 @@
-
-import { createServerClient, type CookieOptions } from '@supabase/ssr'
-import { NextResponse, type NextRequest } from 'next/server'
+import { NextResponse, type NextRequest } from "next/server"
+import { createClient } from "@supabase/supabase-js"
 
 export async function middleware(request: NextRequest) {
   let response = NextResponse.next({
-    request: {
-      headers: request.headers,
-    },
+    request: { headers: request.headers },
   })
 
-  const cookieStore = request.cookies;
-  const supabase = createServerClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-    {
-      cookies: {
-        getAll() {
-          return cookieStore.getAll()
-        },
-        setAll(cookiesToSet) {
-          try {
-             cookiesToSet.forEach(({ name, value, options }) => {
-              request.cookies.set({
-                name,
-                value,
-                ...options,
-              })
-              response = NextResponse.next({
-                request: {
-                  headers: request.headers,
-                },
-              })
-              response.cookies.set({
-                name,
-                value,
-                ...options,
-              })
-            })
-          } catch (error) {
-            // The `setAll` method was called from a Server Component.
-            // This can be ignored if you have middleware refreshing
-            // user sessions.
-          }
-        },
-      },
-    }
-  )
+  // 🔹 Extract token from Authorization header
+  const authHeader = request.headers.get("authorization")
+  const token = authHeader?.startsWith("Bearer ") ? authHeader.slice(7) : null
 
-  const {
-    data: { user },
-  } = await supabase.auth.getUser()
-
-  // Define your protected routes here
-  const protectedRoutes = [
-    '/',
-    '/journey-360',
-    '/are',
-    '/range-calculator',
-    '/overall-view'
-  ]
-  
-  const pathname = request.nextUrl.pathname;
+  // Define protected routes
+  const protectedRoutes = ["/", "/journey-360", "/are", "/range-calculator", "/overall-view"]
+  const pathname = request.nextUrl.pathname
 
   const isProtectedRoute = protectedRoutes.some(route => {
-    // If the route is '/', it must be an exact match
-    if (route === '/') {
-      return pathname === '/';
-    }
-    // For other routes, check for an exact match or a sub-path
-    return pathname === route || pathname.startsWith(route + '/');
-  });
+    if (route === "/") return pathname === "/"
+    return pathname === route || pathname.startsWith(route + "/")
+  })
 
-  const isPublicAuthRoute = ['/login', '/signup'].includes(pathname);
+  const isPublicAuthRoute = ["/login", "/signup"].includes(pathname)
 
-  // If user is not logged in and trying to access a protected route
-  if (!user && isProtectedRoute) {
+  if (!token && isProtectedRoute) {
+    // ❌ No token → redirect to login
     const url = request.nextUrl.clone()
-    url.pathname = '/login'
+    url.pathname = "/login"
     return NextResponse.redirect(url)
   }
 
-  // If user is logged in and trying to access login/signup pages
-  if (user && isPublicAuthRoute) {
-    const url = request.nextUrl.clone()
-    url.pathname = '/'
-    return NextResponse.redirect(url)
+  if (token) {
+    // 🔹 Create a temporary Supabase client (no cookies, just token)
+    const supabase = createClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+    )
+
+    // 🔹 Validate the token with Supabase
+    const { data, error } = await supabase.auth.getUser(token)
+
+    if (error || !data?.user) {
+      console.error("Invalid or expired token:", error?.message)
+
+      // ❌ Invalid token → redirect to login
+      const url = request.nextUrl.clone()
+      url.pathname = "/login"
+      return NextResponse.redirect(url)
+    }
+
+    // ✅ User is authenticated
+    if (isPublicAuthRoute) {
+      // Prevent logged-in users from accessing /login or /signup
+      const url = request.nextUrl.clone()
+      url.pathname = "/"
+      return NextResponse.redirect(url)
+    }
+
+    return response
   }
 
   return response
@@ -92,6 +63,6 @@ export async function middleware(request: NextRequest) {
 
 export const config = {
   matcher: [
-    '/((?!_next/static|_next/image|favicon.ico|auth/confirm|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)',
+    "/((?!_next/static|_next/image|favicon.ico|auth/confirm|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)",
   ],
 }
