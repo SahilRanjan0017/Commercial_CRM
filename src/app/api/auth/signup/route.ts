@@ -1,4 +1,3 @@
-
 // src/app/api/auth/signup/route.ts
 import { createClient } from '@/utils/supabase/server'
 import { cookies } from 'next/headers'
@@ -6,18 +5,17 @@ import { NextRequest, NextResponse } from 'next/server'
 
 export async function POST(request: NextRequest) {
   try {
-    const formData = await request.formData()
-    const email = formData.get('email') as string
-    const password = formData.get('password') as string
-    const full_name = formData.get('full_name') as string
-    const role = formData.get('role') as string
-    const city = formData.get('city') as string
+    // Parse JSON instead of formData
+    const body = await request.json()
+    const { email, password, full_name, role, city } = body
 
-    if (!email || !password || !full_name) {
-      const redirectUrl = new URL('/signup', request.url)
-      redirectUrl.searchParams.set('message', 'Please fill in all required fields')
-      return NextResponse.redirect(redirectUrl)
+    if (!email || !password || !full_name || !role || !city) {
+      return NextResponse.json(
+        { message: 'Please fill in all required fields' },
+        { status: 400 }
+      )
     }
+
     const cookieStore = cookies()
     const supabase = createClient(cookieStore)
 
@@ -25,36 +23,28 @@ export async function POST(request: NextRequest) {
       email,
       password,
       options: {
-        data: {
-          full_name: full_name,
-          role: role,
-          city: city
-        }
+        data: { full_name, role, city }
       }
     })
 
     if (error) {
       console.error('Signup Error:', error)
-      const redirectUrl = new URL('/signup', request.url)
-      redirectUrl.searchParams.set('message', error.message)
-      return NextResponse.redirect(redirectUrl)
+      return NextResponse.json({ message: error.message }, { status: 400 })
     }
 
-    // Check if user needs email confirmation
+    // Email confirmation flow
     if (data.user && !data.user.email_confirmed_at) {
-      const redirectUrl = new URL('/login', request.url)
-      redirectUrl.searchParams.set('message', 'Signup successful! Please check your email to verify your account before logging in.')
-      return NextResponse.redirect(redirectUrl)
+      return NextResponse.json({
+        message: 'Signup successful! Please check your email to verify your account before logging in.'
+      })
     } else {
-      // If email confirmation is disabled, redirect to login
-      const redirectUrl = new URL('/login', request.url)
-      redirectUrl.searchParams.set('message', 'Account created successfully! You can now log in.')
-      return NextResponse.redirect(redirectUrl)
+      return NextResponse.json({ message: 'Account created successfully! You can now log in.' })
     }
   } catch (error) {
     console.error('Unexpected signup error:', error)
-    const redirectUrl = new URL('/signup', request.url)
-    redirectUrl.searchParams.set('message', 'An unexpected error occurred. Please try again.')
-    return NextResponse.redirect(redirectUrl)
+    return NextResponse.json(
+      { message: 'An unexpected error occurred. Please try again.' },
+      { status: 500 }
+    )
   }
 }

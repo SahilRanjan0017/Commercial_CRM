@@ -1,33 +1,53 @@
-"use client";
+"use client"
 
-import { Suspense } from "react";
-import { useSearchParams } from "next/navigation";
-import Link from "next/link";
-import Image from "next/image";
-import { Button } from "@/components/ui/button";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+import { useState } from "react"
+import { useRouter } from "next/navigation"
+import Link from "next/link"
+import Image from "next/image"
+import { Button } from "@/components/ui/button"
+import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import {hashPassword} from '@/utils/hashPassword'
 
-const roles = ["OS", "Business Head"];
-const cities = ["BLR", "CHN", "HYD", "PUNE", "NCR"];
+const roles = ["OS", "Business Head"]
+const cities = ["BLR", "CHN", "HYD", "PUNE", "NCR"]
 
-function SignupContent() {
-  const searchParams = useSearchParams();
-  const message = searchParams.get("message");
+export default function SignupPage() {
+  const router = useRouter()
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+
+  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault()
+    setLoading(true)
+    setError(null)
+
+    const formData = new FormData(e.currentTarget)
+    const body: any = Object.fromEntries(formData.entries())
+
+    try {
+      body.password = await hashPassword(body.password);
+
+      console.log("Signup password : ", body.password);
+
+      const res = await fetch("/api/auth/signup", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      })
+
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.message || "Signup failed")
+
+      // SPA-friendly redirect with state (clean URL)
+      router.push("/login", { state: { message: "Signup successful! Check your email." } })
+    } catch (err: any) {
+      setError(err.message)
+    } finally {
+      setLoading(false)
+    }
+  }
 
   return (
     <div className="w-full min-h-screen lg:grid lg:grid-cols-2">
@@ -40,53 +60,34 @@ function SignupContent() {
                 alt="FlowTrack Logo"
                 width={192}
                 height={192}
-                className="text-primary"
               />
             </Link>
             <h1 className="text-3xl font-bold">Sign Up</h1>
-            <p className="text-balance text-muted-foreground">
+            <p className="text-muted-foreground">
               Enter your information to create an account
             </p>
           </div>
 
-          {message && (
+          {error && (
             <p className="rounded bg-red-100 p-3 text-center text-sm text-red-700 dark:bg-red-900/30 dark:text-red-400">
-              {message}
+              {error}
             </p>
           )}
 
-          <form action="/api/auth/signup" method="POST" className="grid gap-4">
+          <form onSubmit={handleSubmit} className="grid gap-4">
             <div className="grid gap-2">
               <Label htmlFor="full_name">Name</Label>
-              <Input
-                id="full_name"
-                type="text"
-                name="full_name"
-                placeholder="John Doe"
-                required
-              />
+              <Input id="full_name" type="text" name="full_name" placeholder="John Doe" required />
             </div>
 
             <div className="grid gap-2">
               <Label htmlFor="email">Email</Label>
-              <Input
-                id="email"
-                type="email"
-                name="email"
-                placeholder="example@gmail.com"
-                required
-              />
+              <Input id="email" type="email" name="email" placeholder="example@gmail.com" required />
             </div>
 
             <div className="grid gap-2">
               <Label htmlFor="password">Password</Label>
-              <Input
-                id="password"
-                type="password"
-                name="password"
-                placeholder="•••••••••"
-                required
-              />
+              <Input id="password" type="password" name="password" placeholder="•••••••••" required />
             </div>
 
             <div className="grid gap-2">
@@ -96,11 +97,7 @@ function SignupContent() {
                   <SelectValue placeholder="Select Role" />
                 </SelectTrigger>
                 <SelectContent>
-                  {roles.map((role) => (
-                    <SelectItem key={role} value={role}>
-                      {role}
-                    </SelectItem>
-                  ))}
+                  {roles.map((role) => <SelectItem key={role} value={role}>{role}</SelectItem>)}
                 </SelectContent>
               </Select>
             </div>
@@ -112,46 +109,22 @@ function SignupContent() {
                   <SelectValue placeholder="Select City" />
                 </SelectTrigger>
                 <SelectContent>
-                  {cities.map((city) => (
-                    <SelectItem key={city} value={city}>
-                      {city}
-                    </SelectItem>
-                  ))}
+                  {cities.map((city) => <SelectItem key={city} value={city}>{city}</SelectItem>)}
                 </SelectContent>
               </Select>
             </div>
 
-            <Button type="submit" className="w-full">
-              Create an account
+            <Button type="submit" className="w-full" disabled={loading}>
+              {loading ? "Creating..." : "Create an account"}
             </Button>
           </form>
 
           <div className="mt-4 text-center text-sm">
             Already have an account?{" "}
-            <Link href="/login" className="underline">
-              Log in
-            </Link>
+            <Link href="/login" className="underline">Log in</Link>
           </div>
         </div>
       </div>
-      <div className="hidden bg-muted lg:block">
-        <Image
-          src="https://i.postimg.cc/NMVQQKY6/bnb.avif"
-          alt="Image"
-          width="1920"
-          height="1080"
-          className="h-full w-full object-cover dark:brightness-[0.2] dark:grayscale"
-          data-ai-hint="building construction"
-        />
-      </div>
     </div>
-  );
-}
-
-export default function SignupPage() {
-  return (
-    <Suspense fallback={<div>Loading signup page...</div>}>
-      <SignupContent />
-    </Suspense>
-  );
+  )
 }
