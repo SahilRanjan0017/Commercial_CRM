@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useMemo, useCallback } from 'react';
+import { useState, useMemo, useCallback, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -58,8 +58,8 @@ type FloorData = {
 
 const initialInputs = {
     assetClass: 'High Rise Residential',
-    numBasements: '1', // Dynamic input
-    numIntermediateFloors: '4', // Dynamic input (The 'x' in G+x+T)
+    numBasements: '1',
+    numIntermediateFloors: '4',
     buildingHeightM: '18.00',
     foundationType: "Raft Foundation - Upto 5' Depth",
     windowsVentilatorsPercent: '10',
@@ -112,17 +112,16 @@ export function RangeCalculatorForm() {
     const [results, setResults] = useState(defaultResults);
 
     // --- DYNAMIC FLOOR GENERATION ---
-
     const generateFloors = useCallback((currentInputs: typeof initialInputs) => {
         const numB = parseInt(currentInputs.numBasements, 10) || 0;
         const numI = parseInt(currentInputs.numIntermediateFloors, 10) || 0;
-        
-        // Use a persistent map to retain user-entered values
+
+        // Keep previously entered floor values (if any)
         const floorValueMap = new Map(floors.map(f => [f.key, f]));
 
         let newFloors: FloorData[] = [];
 
-        // 1. Basements
+        // Basements
         for (let i = numB; i >= 1; i--) {
             const key = `B${i}`;
             const existing = floorValueMap.get(key);
@@ -135,7 +134,7 @@ export function RangeCalculatorForm() {
             });
         }
 
-        // 2. Ground Floor (GF)
+        // Ground Floor
         const gfKey = 'GF';
         const existingGF = floorValueMap.get(gfKey);
         newFloors.push({
@@ -146,7 +145,7 @@ export function RangeCalculatorForm() {
             height: existingGF?.height || '3.50',
         });
 
-        // 3. Intermediate Floors (1F, 2F, ...)
+        // Intermediate floors
         for (let i = 1; i <= numI; i++) {
             const key = `${i}F`;
             const existing = floorValueMap.get(key);
@@ -159,7 +158,7 @@ export function RangeCalculatorForm() {
             });
         }
 
-        // 4. Top Floor (TF)
+        // Top floor (TF)
         const tfKey = 'TF';
         const existingTF = floorValueMap.get(tfKey);
         newFloors.push({
@@ -167,12 +166,11 @@ export function RangeCalculatorForm() {
             type: 'TF',
             name: 'TF',
             area: existingTF?.area || '',
-            height: existingTF?.height || '', // Height is often irrelevant for TF
+            height: existingTF?.height || '',
         });
 
-        // Apply initial sample data if floors are empty
+        // If all blank, fill sample (keeps your previous example)
         if (newFloors.length > 0 && newFloors.every(f => !f.area && !f.height)) {
-            // Apply sample data based on the prompt's example
             const sampleData: Record<string, { area: string, height: string }> = {
                 'B1': { area: '7225.00', height: '3.00' },
                 'GF': { area: '7225.00', height: '3.50' },
@@ -192,26 +190,32 @@ export function RangeCalculatorForm() {
         return newFloors;
     }, [floors]);
 
-
-    // Initial floor setup and listener for numBasements/numIntermediateFloors change
-    useState(() => {
+    // initial populate
+    useEffect(() => {
         setFloors(generateFloors(initialInputs));
-    });
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []);
 
     // --- HANDLERS ---
-
     const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         const { id, value, type, checked } = e.target;
         const val = type === 'checkbox' ? checked : value;
 
         setInputs(prev => {
-            const newInputs = { ...prev, [id]: val };
-            
-            // Re-generate floors if floor counts change
+            const newInputs: any = { ...prev, [id]: val };
+
+            // sync windows % and window grills %
+            if (id === 'windowsVentilatorsPercent') {
+                newInputs.windowGrillsPercent = value;
+            } else if (id === 'windowGrillsPercent') {
+                newInputs.windowsVentilatorsPercent = value;
+            }
+
+            // regenerate floors when counts change
             if (id === 'numBasements' || id === 'numIntermediateFloors') {
                 setFloors(generateFloors(newInputs));
             }
-            
+
             return newInputs;
         });
     };
@@ -221,24 +225,35 @@ export function RangeCalculatorForm() {
     };
 
     const handleFloorInputChange = (key: string, field: 'area' | 'height', value: string) => {
-        setFloors(prevFloors => 
-            prevFloors.map(f => 
+        setFloors(prevFloors =>
+            prevFloors.map(f =>
                 f.key === key ? { ...f, [field]: value } : f
             )
         );
     };
 
-    // --- CALCULATIONS (Updated to use the new floor structure) ---
+    // --- Derived/calculations ---
 
     const calculateTotalBuiltupArea = useCallback(() => {
         return floors.reduce((acc, f) => acc + (parseFloat(f.area) || 0), 0);
     }, [floors]);
 
-    const calculateTotalBasementHeight = useCallback(() => {
-        return floors
-            .filter(f => f.type === 'Basement')
-            .reduce((acc, f) => acc + (parseFloat(f.height) || 0), 0);
+    // Building height auto-calc:
+    // Sum of GF + all Intermediate floors + TF (user requested TF included)
+    // Exclude basement heights
+    const calculatedBuildingHeight = useMemo(() => {
+        const height = floors
+        .filter(f => f.type !== 'Basement' && f.type !== 'TF')
+        .reduce((acc, f) => acc + (parseFloat(f.height) || 0), 0);
+        return parseFloat(height.toFixed(2));
     }, [floors]);
+
+    // Keep inputs.buildingHeightM in sync (read-only for user)
+    useEffect(() => {
+        setInputs(prev => ({ ...prev, buildingHeightM: String(calculatedBuildingHeight.toFixed(2)) }));
+    }, [calculatedBuildingHeight]);
+
+    // --- COST CALCULATION ---
 
     const calculateCost = () => {
         const totalBuiltupArea = calculateTotalBuiltupArea();
@@ -250,14 +265,21 @@ export function RangeCalculatorForm() {
 
         const assetCost = assetCostsData[inputs.assetClass as keyof typeof assetCostsData];
         const foundationCostInfo = foundationCostsData[inputs.foundationType as keyof typeof foundationCostsData];
-        
+        const numBasements = parseInt(inputs.numBasements || '0', 10) || 0;
+
         let costs: Record<string, number> = {};
 
         // 1.00 Structure
+        // Foundation unit price (shown in UI too)
         costs["Foundation"] = foundationCostInfo.foundation;
-        costs["Reinforcement - in kgs / Sqft"] = assetCost.reinforcement * 80;
-        costs["Other Structure Works"] = foundationCostInfo.otherStructure;
-        
+
+        // Reinforcement: base + 0.5 kg per basement (then converted)
+        const reinforcementKgPerSqft = assetCost.reinforcement + (0.5 * numBasements);
+        costs["Reinforcement - in kgs / Sqft"] = reinforcementKgPerSqft * 80;
+
+        // Other Structure Works: add +30 Rs per basement
+        costs["Other Structure Works"] = foundationCostInfo.otherStructure + (30 * numBasements);
+
         const totalStructureCost = costs["Foundation"] + costs["Reinforcement - in kgs / Sqft"] + costs["Other Structure Works"];
 
         // 2.00 Finishes
@@ -265,40 +287,41 @@ export function RangeCalculatorForm() {
         costs["Waterproofing"] = assetCost.waterproofing;
         costs["Flooring"] = assetCost.flooring;
         costs["Painting"] = assetCost.painting;
-        
+
         const totalFinishesCost = costs["Masonry & Plastering"] + costs["Waterproofing"] + costs["Flooring"] + costs["Painting"];
-        
+
         // 3.00 Joineries
         const windowsVentilatorsPercentage = parseFloat(inputs.windowsVentilatorsPercent) / 100 || 0;
+        // Doors as per asset cost
         costs["Doors - On Total Builtup Area"] = assetCost.doors;
-        costs["Windows & Ventilators - On Total Builtup Area"] = windowsVentilatorsPercentage * 500; 
-        
+        costs["Windows & Ventilators - On Total Builtup Area"] = windowsVentilatorsPercentage * 500;
+
         const totalJoineriesCost = costs["Doors - On Total Builtup Area"] + costs["Windows & Ventilators - On Total Builtup Area"];
 
         // 4.00 Fabrication Works
         const msRailingsPercentage = parseFloat(inputs.msRailingsPercent) / 100 || 0;
         const windowGrillsPercentage = parseFloat(inputs.windowGrillsPercent) / 100 || 0;
-        costs["MS Railings - On Total Builtup Area"] = msRailingsPercentage * 300; 
-        costs["Window Grills - On Total Builtup Area"] = windowGrillsPercentage * 250; 
-        
+        costs["MS Railings - On Total Builtup Area"] = msRailingsPercentage * 300;
+        costs["Window Grills - On Total Builtup Area"] = windowGrillsPercentage * 250;
+
         const totalFabricationCost = costs["MS Railings - On Total Builtup Area"] + costs["Window Grills - On Total Builtup Area"];
 
         // 5.00 Facade Works
         costs["Elevation Cost - Lumpsum Cost Based on Requirement"] = inputs.elevationCost ? 175 : 0;
-        
+
         const totalFacadeCost = costs["Elevation Cost - Lumpsum Cost Based on Requirement"];
 
         // 6.00 MEP Lowside Works
         costs["Electrical (Lowside)"] = assetCost.electrical;
         costs["Plumbing (Lowside)"] = assetCost.plumbing;
         costs["HVAC (Lowside)"] = inputs.hvacLowside ? assetCost.hvac : 0;
-        
+
         const totalMEPLowsideCost = costs["Electrical (Lowside)"] + costs["Plumbing (Lowside)"] + costs["HVAC (Lowside)"];
-        
+
         // 7.00 Other MEP Lowside Works
-        costs["Fire Fighting - Hydrant System"] = 25; 
+        costs["Fire Fighting - Hydrant System"] = 25;
         costs["CCTV, Access Control, PA System, FA System, etc."] = inputs.cctv ? 50 : 0;
-        
+
         const totalOtherMEPLowsideCost = costs["Fire Fighting - Hydrant System"] + costs["CCTV, Access Control, PA System, FA System, etc."];
 
         // 8.00 Electrical - Highside Works
@@ -309,26 +332,25 @@ export function RangeCalculatorForm() {
         costs["UPS / Other High Side"] = inputs.ups ? 50 : 0;
         costs["Lift"] = inputs.lift ? 75 : 0;
         costs["HVAC (Highside)"] = inputs.hvacHighside ? 120 : 0;
-        
+
         const totalElectricalHighsideCost = costs["Transformer Capacity"] + costs["DG Capacity"] + costs["UPS / Other High Side"] + costs["Lift"] + costs["HVAC (Highside)"];
-        
+
         // 9.00 Plumbing
         const stpCapacity = parseFloat(inputs.stpCapacity) || 0;
         const ohtCapacity = parseFloat(inputs.ohtCapacity) || 0;
         const ugSumpCapacity = parseFloat(inputs.ugSumpCapacity) || 0;
         const motorsNos = parseFloat(inputs.motorsNos) || 0;
 
-        costs["STP Capacity"] = (stpCapacity * 30) / totalBuiltupArea;
-        costs["OHT Capacity"] = (ohtCapacity * 20) / totalBuiltupArea;
-        costs["UG Sump Capacity"] = (ugSumpCapacity * 30) / totalBuiltupArea;
-        costs["Motors"] = (motorsNos * 120000) / totalBuiltupArea;
+        costs["STP Capacity"] = totalBuiltupArea > 0 ? (stpCapacity * 30) / totalBuiltupArea : 0;
+        costs["OHT Capacity"] = totalBuiltupArea > 0 ? (ohtCapacity * 20) / totalBuiltupArea : 0;
+        costs["UG Sump Capacity"] = totalBuiltupArea > 0 ? (ugSumpCapacity * 30) / totalBuiltupArea : 0;
+        costs["Motors"] = totalBuiltupArea > 0 ? (motorsNos * 120000) / totalBuiltupArea : 0;
         costs["External Drainage System"] = inputs.externalDrainage ? 90 : 40;
-        
+
         const totalPlumbingHighsideCost = costs["STP Capacity"] + costs["OHT Capacity"] + costs["UG Sump Capacity"] + costs["Motors"] + costs["External Drainage System"];
 
         // 10.00 Fire Fighting
         costs["Sprinklers"] = inputs.sprinklers ? 50 : 0;
-
         const totalFireFightingCost = costs["Sprinklers"];
 
         // 11.00 External Development
@@ -336,17 +358,16 @@ export function RangeCalculatorForm() {
         costs["Hardscape"] = inputs.hardscape ? 100 : 0;
         costs["Softscape"] = inputs.softscape ? 80 : 0;
         costs["Entrance Arch"] = inputs.entranceArch ? 70 : 0;
-        
-        const totalExternalDevelopmentCost = costs["Roads & External Drains"] + costs["Hardscape"] + costs["Softscape"] + costs["Entrance Arch"];
-        
-        // --- SUMMARY CALCULATION ---
 
+        const totalExternalDevelopmentCost = costs["Roads & External Drains"] + costs["Hardscape"] + costs["Softscape"] + costs["Entrance Arch"];
+
+        // --- SUMMARY CALCULATION ---
         const allCosts = Object.values(costs);
         const totalCostPerSqft = allCosts.reduce((acc, val) => acc + (isNaN(val) ? 0 : val), 0);
         const subTotal = totalBuiltupArea * totalCostPerSqft;
 
         setResults({
-            totalBuiltupArea: totalBuiltupArea,
+            totalBuiltupArea,
             subTotalCost: subTotal,
             grandTotalCost: subTotal * (1 + GST_RATE),
             costSummary: costs,
@@ -366,35 +387,22 @@ export function RangeCalculatorForm() {
         setDeck(3);
     };
 
-    // Calculate the number of floors (G+x+T format) for display
+    // Calculate display string for floors (G + x + T with basement count)
     const floorsDisplayString = useMemo(() => {
         const floorAreas = floors.filter(f => (parseFloat(f.area) || 0) > 0);
         const basementCount = floorAreas.filter(f => f.type === 'Basement').length;
         const groundFloor = floorAreas.find(f => f.type === 'GF');
         const topFloor = floorAreas.find(f => f.type === 'TF');
         const intermediateFloors = floorAreas.filter(f => f.type === 'Intermediate');
-        
+
         let display = '';
-        if (groundFloor) {
-            display += 'G';
-        }
+        if (groundFloor) display += 'G';
+        if (intermediateFloors.length > 0) display += `+${intermediateFloors.length}`;
+        if (topFloor) display += '+T';
+        if (basementCount > 0) display += ` (B${basementCount})`;
 
-        if (intermediateFloors.length > 0) {
-            display += `+${intermediateFloors.length}`;
-        }
-
-        if (topFloor) {
-            display += '+T';
-        }
-
-        if (basementCount > 0) {
-            // Display Bx, where x is the number of basements
-            display += ` (B${basementCount})`;
-        }
-        
         return display || 'N/A';
     }, [floors]);
-
 
     return (
         <div className="container mx-auto p-4 max-w-5xl">
@@ -417,7 +425,7 @@ export function RangeCalculatorForm() {
                                 </div>
                                 <div>
                                     <Label htmlFor="buildingHeightM" className="font-semibold">Building Height (in meters)</Label>
-                                    <Input type="number" id="buildingHeightM" value={inputs.buildingHeightM} onChange={handleInputChange} placeholder="e.g., 18.00" min="0" />
+                                    <Input type="number" id="buildingHeightM" value={inputs.buildingHeightM} readOnly placeholder="Auto-calculated" min="0" />
                                 </div>
                                 <div>
                                     <Label htmlFor="foundationType" className="font-semibold">Foundation Type</Label>
@@ -425,9 +433,11 @@ export function RangeCalculatorForm() {
                                         <SelectTrigger><SelectValue /></SelectTrigger>
                                         <SelectContent>{foundationTypes.map(f => <SelectItem key={f} value={f}>{f}</SelectItem>)}</SelectContent>
                                     </Select>
+                                    {/* Show foundation unit price */}
+                                    <p className="mt-2 text-sm text-gray-700">Foundation unit price: <span className="font-semibold text-indigo-700">₹{foundationCostsData[inputs.foundationType].foundation} / Sqft</span></p>
                                 </div>
                             </div>
-                            
+
                             <h4 className="text-xl font-semibold mb-4 text-blue-600">Structure Configuration</h4>
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8 p-4 border rounded-lg bg-gray-50">
                                 <div>
@@ -450,20 +460,19 @@ export function RangeCalculatorForm() {
                             {floors.map((f) => (
                                 <div key={f.key} className={`grid grid-cols-4 gap-4 py-2 border-b ${f.type === 'Basement' ? 'bg-yellow-50' : f.type === 'GF' || f.type === 'TF' ? 'bg-indigo-50' : ''}`}>
                                     <span className="font-medium self-center">{f.name}</span>
-                                    <Input 
-                                        type="number" 
-                                        value={f.area} 
-                                        onChange={(e) => handleFloorInputChange(f.key, 'area', e.target.value)} 
-                                        placeholder="Area (Sqft)" 
+                                    <Input
+                                        type="number"
+                                        value={f.area}
+                                        onChange={(e) => handleFloorInputChange(f.key, 'area', e.target.value)}
+                                        placeholder="Area (Sqft)"
                                         min="0"
                                     />
-                                    <Input 
-                                        type="number" 
-                                        value={f.height} 
-                                        onChange={(e) => handleFloorInputChange(f.key, 'height', e.target.value)} 
-                                        placeholder="Height (m)" 
+                                    <Input
+                                        type="number"
+                                        value={f.height}
+                                        onChange={(e) => handleFloorInputChange(f.key, 'height', e.target.value)}
+                                        placeholder="Height (m)"
                                         min="0"
-                                        disabled={f.type === 'TF'}
                                     />
                                     <span className="self-center text-right pr-2 font-mono">{(parseFloat(f.area) || 0).toFixed(2)}</span>
                                 </div>
@@ -479,72 +488,97 @@ export function RangeCalculatorForm() {
                         </div>
                     )}
 
-                    {/* --- DECK 2 & 3 (REMAIN UNCHANGED) --- */}
+                    {/* --- DECK 2 --- */}
                     {deck === 2 && (
                         <div>
                             <h3 className="text-2xl font-bold mb-6 text-gray-800 border-b pb-2">Deck 2: Detailed Cost Parameters</h3>
-                            
+
                             {/* Joineries & Fabrication */}
                             <div className="space-y-4 mb-8 p-4 border rounded-lg bg-indigo-50">
                                 <h4 className="font-bold text-lg text-indigo-800">Joineries & Fabrication Percentage Inputs</h4>
                                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                                    <div><Label htmlFor="windowsVentilatorsPercent">Windows & Ventilators %</Label><Input type="number" id="windowsVentilatorsPercent" value={inputs.windowsVentilatorsPercent} onChange={handleInputChange} min="0" max="100" /></div>
-                                    <div><Label htmlFor="msRailingsPercent">MS Railings %</Label><Input type="number" id="msRailingsPercent" value={inputs.msRailingsPercent} onChange={handleInputChange} min="0" max="100" /></div>
-                                    <div><Label htmlFor="windowGrillsPercent">Window Grills %</Label><Input type="number" id="windowGrillsPercent" value={inputs.windowGrillsPercent} onChange={handleInputChange} min="0" max="100" /></div>
+                                    <div>
+                                        <Label htmlFor="windowsVentilatorsPercent">Windows & Ventilators %</Label>
+                                        <Input type="number" id="windowsVentilatorsPercent" value={inputs.windowsVentilatorsPercent} onChange={handleInputChange} min="0" max="100" />
+                                    </div>
+                                    <div>
+                                        <Label htmlFor="msRailingsPercent">MS Railings %</Label>
+                                        <Input type="number" id="msRailingsPercent" value={inputs.msRailingsPercent} onChange={handleInputChange} min="0" max="100" />
+                                    </div>
+                                    <div>
+                                        <Label htmlFor="windowGrillsPercent">Window Grills %</Label>
+                                        <Input type="number" id="windowGrillsPercent" value={inputs.windowGrillsPercent} onChange={handleInputChange} min="0" max="100" />
+                                    </div>
                                 </div>
                             </div>
-                            
+
                             <div className="space-y-6">
                                 {/* Facade Works */}
-                                <div><h4 className="font-bold text-lg text-gray-700 border-b pb-1">Facade Works</h4>
-                                    <div className="flex items-center space-x-2 mt-2"><Checkbox id="elevationCost" checked={inputs.elevationCost} onCheckedChange={(c) => handleSelectChange('elevationCost', c as boolean)} /><label htmlFor="elevationCost" className="text-sm font-medium leading-none">Elevation Cost (₹175/0)</label></div>
+                                <div>
+                                    <h4 className="font-bold text-lg text-gray-700 border-b pb-1">Facade Works</h4>
+                                    <div className="flex items-center space-x-2 mt-2">
+                                        <Checkbox id="elevationCost" checked={inputs.elevationCost} onCheckedChange={(c) => handleSelectChange('elevationCost', c as boolean)} />
+                                        <label htmlFor="elevationCost" className="text-sm font-medium leading-none">Elevation Cost</label>
+                                    </div>
                                 </div>
 
                                 {/* MEP Lowside */}
-                                <div><h4 className="font-bold text-lg text-gray-700 border-b pb-1">MEP Lowside Works (HVAC & Other)</h4>
+                                <div>
+                                    <h4 className="font-bold text-lg text-gray-700 border-b pb-1">MEP Lowside Works (HVAC & Other)</h4>
                                     <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-2">
-                                        <div className="flex items-center space-x-2"><Checkbox id="hvacLowside" checked={inputs.hvacLowside} onCheckedChange={(c) => handleSelectChange('hvacLowside', c as boolean)} /><label htmlFor="hvacLowside" className="text-sm font-medium leading-none">HVAC (Lowside)</label></div>
-                                        <div className="flex items-center space-x-2"><Checkbox id="cctv" checked={inputs.cctv} onCheckedChange={(c) => handleSelectChange('cctv', c as boolean)} /><label htmlFor="cctv" className="text-sm font-medium leading-none">CCTV, Access Control, PA/FA System (₹50/0)</label></div>
+                                        <div className="flex items-center space-x-2">
+                                            <Checkbox id="hvacLowside" checked={inputs.hvacLowside} onCheckedChange={(c) => handleSelectChange('hvacLowside', c as boolean)} />
+                                            <label htmlFor="hvacLowside" className="text-sm font-medium leading-none">HVAC (Lowside)</label>
+                                        </div>
+                                        <div className="flex items-center space-x-2">
+                                            <Checkbox id="cctv" checked={inputs.cctv} onCheckedChange={(c) => handleSelectChange('cctv', c as boolean)} />
+                                            <label htmlFor="cctv" className="text-sm font-medium leading-none">CCTV, Access Control, PA/FA System</label>
+                                        </div>
                                     </div>
                                 </div>
-                                
+
                                 {/* Electrical - Highside Works */}
-                                <div><h4 className="font-bold text-lg text-gray-700 border-b pb-1">Electrical - Highside Works</h4>
+                                <div>
+                                    <h4 className="font-bold text-lg text-gray-700 border-b pb-1">Electrical - Highside Works</h4>
                                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-2">
                                         <div><Label htmlFor="transformerCapacity">Transformer Capacity (kVa)</Label><Input type="number" id="transformerCapacity" value={inputs.transformerCapacity} onChange={handleInputChange} min="0" /></div>
                                         <div><Label htmlFor="dgCapacity">DG Capacity (kVa)</Label><Input type="number" id="dgCapacity" value={inputs.dgCapacity} onChange={handleInputChange} min="0" /></div>
-                                        <div className="flex items-center space-x-2"><Checkbox id="ups" checked={inputs.ups} onCheckedChange={(c) => handleSelectChange('ups', c as boolean)} /><label htmlFor="ups" className="text-sm font-medium leading-none">UPS / Other High Side (₹50/0)</label></div>
-                                        <div className="flex items-center space-x-2"><Checkbox id="lift" checked={inputs.lift} onCheckedChange={(c) => handleSelectChange('lift', c as boolean)} /><label htmlFor="lift" className="text-sm font-medium leading-none">Lift (₹75/0)</label></div>
-                                        <div className="flex items-center space-x-2"><Checkbox id="hvacHighside" checked={inputs.hvacHighside} onCheckedChange={(c) => handleSelectChange('hvacHighside', c as boolean)} /><label htmlFor="hvacHighside" className="text-sm font-medium leading-none">HVAC (Highside) (₹120/0)</label></div>
+                                        <div className="flex items-center space-x-2"><Checkbox id="ups" checked={inputs.ups} onCheckedChange={(c) => handleSelectChange('ups', c as boolean)} /><label htmlFor="ups" className="text-sm font-medium leading-none">UPS / Other High Side</label></div>
+                                        <div className="flex items-center space-x-2"><Checkbox id="lift" checked={inputs.lift} onCheckedChange={(c) => handleSelectChange('lift', c as boolean)} /><label htmlFor="lift" className="text-sm font-medium leading-none">Lift</label></div>
+                                        <div className="flex items-center space-x-2"><Checkbox id="hvacHighside" checked={inputs.hvacHighside} onCheckedChange={(c) => handleSelectChange('hvacHighside', c as boolean)} /><label htmlFor="hvacHighside" className="text-sm font-medium leading-none">HVAC (Highside)</label></div>
                                     </div>
                                 </div>
-                                
+
                                 {/* Plumbing */}
-                                <div><h4 className="font-bold text-lg text-gray-700 border-b pb-1">Plumbing</h4>
+                                <div>
+                                    <h4 className="font-bold text-lg text-gray-700 border-b pb-1">Plumbing</h4>
                                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-2">
                                         <div><Label htmlFor="stpCapacity">STP - Capacity (Ltrs)</Label><Input type="number" id="stpCapacity" value={inputs.stpCapacity} onChange={handleInputChange} min="0" /></div>
                                         <div><Label htmlFor="ohtCapacity">OHT - Capacity (Ltrs)</Label><Input type="number" id="ohtCapacity" value={inputs.ohtCapacity} onChange={handleInputChange} min="0" /></div>
                                         <div><Label htmlFor="ugSumpCapacity">UG Sump - Capacity (Ltrs)</Label><Input type="number" id="ugSumpCapacity" value={inputs.ugSumpCapacity} onChange={handleInputChange} min="0" /></div>
                                         <div><Label htmlFor="motorsNos">Motors - (Nos.)</Label><Input type="number" id="motorsNos" value={inputs.motorsNos} onChange={handleInputChange} min="0" /></div>
-                                        <div className="flex items-center space-x-2"><Checkbox id="externalDrainage" checked={inputs.externalDrainage} onCheckedChange={(c) => handleSelectChange('externalDrainage', c as boolean)} /><label htmlFor="externalDrainage" className="text-sm font-medium leading-none">External Drainage System (₹90/40)</label></div>
+                                        <div className="flex items-center space-x-2"><Checkbox id="externalDrainage" checked={inputs.externalDrainage} onCheckedChange={(c) => handleSelectChange('externalDrainage', c as boolean)} /><label htmlFor="externalDrainage" className="text-sm font-medium leading-none">External Drainage System</label></div>
                                     </div>
                                 </div>
 
                                 {/* Fire Fighting */}
-                                <div><h4 className="font-bold text-lg text-gray-700 border-b pb-1">Fire Fighting</h4>
-                                    <div className="flex items-center space-x-2 mt-2"><Checkbox id="sprinklers" checked={inputs.sprinklers} onCheckedChange={(c) => handleSelectChange('sprinklers', c as boolean)} /><label htmlFor="sprinklers" className="text-sm font-medium leading-none">Sprinklers (₹50/0)</label></div>
+                                <div>
+                                    <h4 className="font-bold text-lg text-gray-700 border-b pb-1">Fire Fighting</h4>
+                                    <div className="flex items-center space-x-2 mt-2"><Checkbox id="sprinklers" checked={inputs.sprinklers} onCheckedChange={(c) => handleSelectChange('sprinklers', c as boolean)} /><label htmlFor="sprinklers" className="text-sm font-medium leading-none">Sprinklers</label></div>
                                 </div>
-                                
+
                                 {/* External Development */}
-                                <div><h4 className="font-bold text-lg text-gray-700 border-b pb-1">External Development</h4>
+                                <div>
+                                    <h4 className="font-bold text-lg text-gray-700 border-b pb-1">External Development</h4>
                                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-2">
-                                        <div className="flex items-center space-x-2"><Checkbox id="roadsDrains" checked={inputs.roadsDrains} onCheckedChange={(c) => handleSelectChange('roadsDrains', c as boolean)} /><label htmlFor="roadsDrains" className="text-sm font-medium leading-none">Roads & External Drains (₹120/0)</label></div>
-                                        <div className="flex items-center space-x-2"><Checkbox id="hardscape" checked={inputs.hardscape} onCheckedChange={(c) => handleSelectChange('hardscape', c as boolean)} /><label htmlFor="hardscape" className="text-sm font-medium leading-none">Hardscape (₹100/0)</label></div>
-                                        <div className="flex items-center space-x-2"><Checkbox id="softscape" checked={inputs.softscape} onCheckedChange={(c) => handleSelectChange('softscape', c as boolean)} /><label htmlFor="softscape" className="text-sm font-medium leading-none">Softscape (₹80/0)</label></div>
-                                        <div className="flex items-center space-x-2"><Checkbox id="entranceArch" checked={inputs.entranceArch} onCheckedChange={(c) => handleSelectChange('entranceArch', c as boolean)} /><label htmlFor="entranceArch" className="text-sm font-medium leading-none">Entrance Arch (₹70/0)</label></div>
+                                        <div className="flex items-center space-x-2"><Checkbox id="roadsDrains" checked={inputs.roadsDrains} onCheckedChange={(c) => handleSelectChange('roadsDrains', c as boolean)} /><label htmlFor="roadsDrains" className="text-sm font-medium leading-none">Roads & External Drains</label></div>
+                                        <div className="flex items-center space-x-2"><Checkbox id="hardscape" checked={inputs.hardscape} onCheckedChange={(c) => handleSelectChange('hardscape', c as boolean)} /><label htmlFor="hardscape" className="text-sm font-medium leading-none">Hardscape</label></div>
+                                        <div className="flex items-center space-x-2"><Checkbox id="softscape" checked={inputs.softscape} onCheckedChange={(c) => handleSelectChange('softscape', c as boolean)} /><label htmlFor="softscape" className="text-sm font-medium leading-none">Softscape</label></div>
+                                        <div className="flex items-center space-x-2"><Checkbox id="entranceArch" checked={inputs.entranceArch} onCheckedChange={(c) => handleSelectChange('entranceArch', c as boolean)} /><label htmlFor="entranceArch" className="text-sm font-medium leading-none">Entrance Arch</label></div>
                                     </div>
                                 </div>
                             </div>
+
                             <div className="flex justify-between mt-8">
                                 <Button variant="secondary" onClick={() => setDeck(1)}>Back: Project Inputs</Button>
                                 <Button onClick={calculateCost}>Calculate Cost</Button>
@@ -552,25 +586,25 @@ export function RangeCalculatorForm() {
                         </div>
                     )}
 
+                    {/* --- DECK 3: RESULTS --- */}
                     {deck === 3 && (
                         <div>
                             <h3 className="text-2xl font-bold mb-6 text-gray-800 border-b pb-2">Deck 3: Final Cost Summary</h3>
-                            
+
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6 p-4 border rounded-lg bg-green-50">
                                 <p className="text-xl"><strong>Type of Structure:</strong> <span className='font-semibold text-blue-700'>{inputs.assetClass}</span></p>
                                 <p className="text-xl"><strong>No. of Floors:</strong> <span className='font-semibold text-blue-700'>{floorsDisplayString}</span></p>
                                 <p className="text-xl"><strong>Building Height:</strong> <span className='font-semibold text-blue-700'>{inputs.buildingHeightM} m</span></p>
                                 <p className="text-xl"><strong>Total Built-up Area:</strong> <span className='font-semibold text-blue-700'>{results.totalBuiltupArea.toFixed(2)} Sqft</span></p>
                                 <p className="text-2xl font-extrabold text-red-700">Sub Total Cost (w/o GST):</p>
-                                <p className="text-2xl font-extrabold text-red-700">₹{(results.subTotalCost / results.totalBuiltupArea).toFixed(0)} / Sqft</p>
+                                <p className="text-2xl font-extrabold text-red-700">₹{((results.subTotalCost) / (results.totalBuiltupArea || 1)).toFixed(0)} / Sqft</p>
                             </div>
 
                             <div className="mb-8 p-4 border rounded-lg bg-red-50">
                                 <p className="text-3xl font-extrabold text-center text-red-800">Grand Total Cost (with GST): ₹{results.grandTotalCost.toLocaleString('en-IN', { maximumFractionDigits: 0 })}</p>
-                                <p className="text-xl font-extrabold text-center text-red-800">Grand Total Cost (Per Sqft): ₹{(results.grandTotalCost / results.totalBuiltupArea).toFixed(0)}</p>
+                                <p className="text-xl font-extrabold text-center text-red-800">Grand Total Cost (Per Sqft): ₹{(results.grandTotalCost / (results.totalBuiltupArea || 1)).toFixed(0)}</p>
                             </div>
-                            
-                            {/* Detailed Cost Breakdown Table (Condensed for brevity) */}
+
                             <h4 className="text-xl font-bold mb-3 text-gray-700">Detailed Cost / Sqft Breakdown</h4>
                             <div className="overflow-x-auto">
                                 <Table className='border'>
@@ -584,9 +618,9 @@ export function RangeCalculatorForm() {
                                     <TableBody>
                                         <TableRow className='bg-gray-200 font-bold'><TableCell>1.00</TableCell><TableCell>Structure</TableCell><TableCell className="text-right">₹{results.totalStructureCost.toFixed(2)}</TableCell></TableRow>
                                         {Object.entries(results.costSummary).filter(([key]) => ["Foundation", "Reinforcement - in kgs / Sqft", "Other Structure Works"].includes(key)).map(([key, value]) => (<TableRow key={key}><TableCell></TableCell><TableCell className="pl-6">{key}</TableCell><TableCell className="text-right">₹{value.toFixed(2)}</TableCell></TableRow>))}
-                                        
+
                                         <TableRow className='bg-gray-200 font-bold'><TableCell>2.00</TableCell><TableCell>Finishes</TableCell><TableCell className="text-right">₹{results.totalFinishesCost.toFixed(2)}</TableCell></TableRow>
-                                        {/* ... (Other sections follow similar pattern) ... */}
+
                                         <TableRow className='bg-gray-200 font-bold'><TableCell>3.00</TableCell><TableCell>Joineries</TableCell><TableCell className="text-right">₹{results.totalJoineriesCost.toFixed(2)}</TableCell></TableRow>
                                         <TableRow className='bg-gray-200 font-bold'><TableCell>4.00</TableCell><TableCell>Fabrication Works</TableCell><TableCell className="text-right">₹{results.totalFabricationCost.toFixed(2)}</TableCell></TableRow>
                                         <TableRow className='bg-gray-200 font-bold'><TableCell>5.00</TableCell><TableCell>Facade Works</TableCell><TableCell className="text-right">₹{results.totalFacadeCost.toFixed(2)}</TableCell></TableRow>
@@ -599,6 +633,18 @@ export function RangeCalculatorForm() {
                                     </TableBody>
                                 </Table>
                             </div>
+
+                            {/* Final Notes */}
+                            <div className="mt-6 p-4 border rounded-lg bg-yellow-50">
+                                <h4 className="text-lg font-bold mb-3 text-gray-800">Notes:</h4>
+                                <ol className="list-decimal pl-6 space-y-2 text-gray-700">
+                                    <li>The above said costings are purely tentative based on the ideal conditions of the projects worked earlier.</li>
+                                    <li>The prices of every project may vary based on the specifications of the project, detailed drawings & design requirements.</li>
+                                    <li>Any additional requirements beyond the basic standards will have an impact on the project costing.</li>
+                                    <li>Items not specified are not included in the basic heads and are additional costs based on the project requirements.</li>
+                                </ol>
+                            </div>
+
                             <div className="flex justify-end mt-6">
                                 <Button variant="secondary" onClick={() => setDeck(2)}>Back to Detailed Costs</Button>
                             </div>
